@@ -70,13 +70,7 @@ CREATE TABLE ticket_types (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT fk_ticket_types_event
-        FOREIGN KEY (event_id) REFERENCES events(id),
-    CONSTRAINT chk_ticket_inventory
-        CHECK (
-            total_quantity >= 0
-            AND sold_count >= 0
-            AND sold_count <= total_quantity
-        )
+        FOREIGN KEY (event_id) REFERENCES events(id)
 );
 
 -- ----------------------------
