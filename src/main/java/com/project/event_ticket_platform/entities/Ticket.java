@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -46,8 +47,9 @@ public class Ticket {
 	@Column(name = "status", nullable = false)
 	private TicketStatus status = TicketStatus.PURCHASED;
 
-	@Column(name = "qr_code", nullable = false, unique = true)
-	private String qrCode;
+	@OneToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "qr_code_id", nullable = false, unique = true)
+	private QrCode qrCode;
 
 	@Column(name = "checked_in_at")
 	private Instant checkedInAt;

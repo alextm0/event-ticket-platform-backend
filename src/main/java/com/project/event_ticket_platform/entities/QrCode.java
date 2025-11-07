@@ -13,6 +13,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -37,4 +38,8 @@ public class QrCode {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false)
 	private QrCodeStatusEnum status;
+
+	@LastModifiedDate
+	@Column(name = "updated_at", nullable = false)
+	private Instant updatedAt;
 }

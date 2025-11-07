@@ -63,18 +63,6 @@ CREATE TABLE orders (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Concrete tickets tied to orders and ticket types
-CREATE TABLE tickets (
-    id UUID PRIMARY KEY,
-    order_id UUID NOT NULL REFERENCES orders(id),
-    ticket_type_id UUID NOT NULL REFERENCES ticket_types(id),
-    qr_code VARCHAR(255) NOT NULL UNIQUE,
-    status ticket_status NOT NULL DEFAULT 'PURCHASED',
-    checked_in_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 -- Event staff assignments
 CREATE TABLE event_staff (
     id UUID PRIMARY KEY,
@@ -88,7 +76,20 @@ CREATE TABLE event_staff (
 CREATE TABLE qr_codes (
     id UUID PRIMARY KEY,
     generated_date_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    status qr_code_status NOT NULL
+    status qr_code_status NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Concrete tickets tied to orders and ticket types
+CREATE TABLE tickets (
+    id UUID PRIMARY KEY,
+    order_id UUID NOT NULL REFERENCES orders(id),
+    ticket_type_id UUID NOT NULL REFERENCES ticket_types(id),
+    qr_code_id UUID NOT NULL UNIQUE REFERENCES qr_codes(id),
+    status ticket_status NOT NULL DEFAULT 'PURCHASED',
+    checked_in_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Ticket validation audit
