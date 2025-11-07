@@ -37,7 +37,7 @@ public class QrCode {
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false)
-	private QrCodeStatusEnum status;
+	private QrCodeStatusEnum status = QrCodeStatusEnum.ACTIVE;
 
 	@LastModifiedDate
 	@Column(name = "updated_at", nullable = false)

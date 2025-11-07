@@ -15,6 +15,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -26,7 +27,7 @@ import java.util.UUID;
 @Entity
 @Table(
 	name = "event_staff",
-	uniqueConstraints = @UniqueConstraint(name = "uq_event_staff_event_staff", columnNames = { "event_id", "staff_id" })
+	uniqueConstraints = @UniqueConstraint(name = "uq_event_staff_assignment", columnNames = { "event_id", "staff_id" })
 )
 @EntityListeners(AuditingEntityListener.class)
 public class EventStaff {
@@ -46,4 +47,8 @@ public class EventStaff {
 	@CreatedDate
 	@Column(name = "assigned_at", nullable = false, updatable = false)
 	private Instant assignedAt;
+
+	@LastModifiedDate
+	@Column(name = "updated_at", nullable = false)
+	private Instant updatedAt;
 }

@@ -1,5 +1,6 @@
 package com.project.event_ticket_platform.entities;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -66,7 +67,7 @@ public class TicketType {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
-	@OneToMany(mappedBy = "ticketType")
+	@OneToMany(mappedBy = "ticketType", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Ticket> tickets = new ArrayList<>();
 
 	public void addTicket(Ticket ticket) {
