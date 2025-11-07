@@ -12,6 +12,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,8 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,6 +51,9 @@ class EventControllerTest {
 	void shouldCreateEvent() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		UUID organizerId = UUID.randomUUID();
+		Instant start = Instant.now().plusSeconds(3600);
+		Instant end = start.plusSeconds(3600);
+
 		Instant now = Instant.now();
 
 		EventResponse response = new EventResponse(
@@ -53,8 +62,8 @@ class EventControllerTest {
 			"Launch Party",
 			"Celebrate product launch",
 			"Berlin",
-			now,
-			now.plusSeconds(3600),
+			start,
+			end,
 			EventStatus.PUBLISHED,
 			now,
 			now
@@ -70,11 +79,11 @@ class EventControllerTest {
 						"title": "Launch Party",
 						"description": "Celebrate product launch",
 						"location": "Berlin",
-						"startTime": "2025-07-01T18:00:00Z",
-						"endTime": "2025-07-01T20:00:00Z",
+						"startTime": "%s",
+						"endTime": "%s",
 						"status": "PUBLISHED"
 					}
-					""".formatted(organizerId)))
+					""".formatted(organizerId, start.toString(), end.toString())))
 			.andExpect(status().isCreated())
 			.andExpect(header().string("Location", "/api/v1/events/" + eventId))
 			.andExpect(jsonPath("$.id").value(eventId.toString()))
@@ -104,12 +113,17 @@ class EventControllerTest {
 			Instant.now()
 		);
 
-		when(eventService.getAllEvents()).thenReturn(List.of(response));
+		Page<EventResponse> page = new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1);
 
-		mockMvc.perform(get("/api/v1/events"))
+		when(eventService.getAllEvents(any(Pageable.class))).thenReturn(page);
+
+		mockMvc.perform(get("/api/v1/events").param("page", "0").param("size", "20"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].title").value("Conference"))
-			.andExpect(jsonPath("$[0].status").value("PUBLISHED"));
+			.andExpect(jsonPath("$.content[0].title").value("Conference"))
+			.andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.size").value(20))
+			.andExpect(jsonPath("$.number").value(0))
+			.andExpect(jsonPath("$.totalElements").value(1));
 	}
 
 	@TestConfiguration
@@ -119,5 +133,51 @@ class EventControllerTest {
 		EventService eventService() {
 			return Mockito.mock(EventService.class);
 		}
+	}
+
+	@Test
+	void shouldPublishEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		EventResponse response = new EventResponse(
+			eventId,
+			UUID.randomUUID(),
+			"Launch Party",
+			"Desc",
+			"Berlin",
+			Instant.now().plusSeconds(3600),
+			Instant.now().plusSeconds(7200),
+			EventStatus.PUBLISHED,
+			Instant.now(),
+			Instant.now()
+		);
+
+		when(eventService.updateEvent(any(UUID.class), any())).thenReturn(response);
+
+		mockMvc.perform(put("/api/v1/events/{eventId}", eventId)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"title": "Launch Party",
+						"description": "Desc",
+						"location": "Berlin",
+						"startTime": "%s",
+						"endTime": "%s",
+						"status": "PUBLISHED"
+					}
+					""".formatted(response.startTime().toString(), response.endTime().toString())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+		verify(eventService).updateEvent(any(UUID.class), any());
+	}
+
+	@Test
+	void shouldDeleteEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+
+		mockMvc.perform(delete("/api/v1/events/{eventId}", eventId))
+			.andExpect(status().isNoContent());
+
+		verify(eventService).deleteEvent(eventId);
 	}
 }

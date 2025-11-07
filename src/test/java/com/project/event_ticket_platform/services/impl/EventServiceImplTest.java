@@ -2,20 +2,27 @@ package com.project.event_ticket_platform.services.impl;
 
 import com.project.event_ticket_platform.dtos.CreateEventRequest;
 import com.project.event_ticket_platform.dtos.EventResponse;
+import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.User;
 import com.project.event_ticket_platform.entities.UserRole;
+import com.project.event_ticket_platform.exceptions.EventNotFoundException;
+import com.project.event_ticket_platform.exceptions.EventValidationException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
+import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +32,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,14 +46,17 @@ class EventServiceImplTest {
 	@Mock
 	private UserRepository userRepository;
 
-	@InjectMocks
 	private EventServiceImpl eventService;
+	private EventMapper eventMapper;
 
 	private User organizer;
 	private UUID organizerId;
 
 	@BeforeEach
 	void setup() {
+		eventMapper = Mappers.getMapper(EventMapper.class);
+		eventService = new EventServiceImpl(eventRepository, userRepository, eventMapper);
+
 		organizerId = UUID.randomUUID();
 		organizer = new User();
 		organizer.setId(organizerId);
@@ -55,13 +67,16 @@ class EventServiceImplTest {
 
 	@Test
 	void shouldCreateEventWithDefaultStatusWhenNotProvided() {
+		Instant start = Instant.now().plusSeconds(3600);
+		Instant end = start.plusSeconds(3600);
+
 		CreateEventRequest request = new CreateEventRequest(
 			organizerId,
 			"Sample Event",
 			"Description",
 			"Online",
-			Instant.parse("2025-06-01T10:00:00Z"),
-			Instant.parse("2025-06-01T12:00:00Z"),
+			start,
+			end,
 			null
 		);
 
@@ -90,15 +105,9 @@ class EventServiceImplTest {
 
 	@Test
 	void shouldThrowWhenOrganizerNotFound() {
-		CreateEventRequest request = new CreateEventRequest(
-			organizerId,
-			"Sample Event",
-			null,
-			null,
-			null,
-			null,
-			EventStatus.PUBLISHED
-		);
+		CreateEventRequest request = validRequestBuilder()
+			.status(EventStatus.PUBLISHED)
+			.build();
 
 		when(userRepository.findById(organizerId)).thenReturn(Optional.empty());
 
@@ -116,14 +125,155 @@ class EventServiceImplTest {
 		event.setCreatedAt(Instant.parse("2025-05-02T10:00:00Z"));
 		event.setUpdatedAt(Instant.parse("2025-05-02T11:00:00Z"));
 
-		when(eventRepository.findAll()).thenReturn(List.of(event));
+		when(eventRepository.findAll(Pageable.unpaged())).thenReturn(new PageImpl<>(List.of(event)));
 
-		List<EventResponse> responses = eventService.getAllEvents();
+		Page<EventResponse> responses = eventService.getAllEvents(Pageable.unpaged());
 
-		assertThat(responses).hasSize(1);
-		EventResponse response = responses.get(0);
+		assertThat(responses.getTotalElements()).isEqualTo(1);
+		EventResponse response = responses.getContent().get(0);
 		assertThat(response.id()).isEqualTo(event.getId());
 		assertThat(response.organizerId()).isEqualTo(organizerId);
 		assertThat(response.status()).isEqualTo(EventStatus.PUBLISHED);
+	}
+
+	@Test
+	void shouldRejectEventsWhereEndIsBeforeStart() {
+		Instant start = Instant.now().plusSeconds(7200);
+		Instant end = start.minusSeconds(600);
+
+		CreateEventRequest request = new CreateEventRequest(
+			organizerId,
+			"Invalid Event",
+			"Desc",
+			"Remote",
+			start,
+			end,
+			EventStatus.DRAFT
+		);
+
+		when(userRepository.findById(organizerId)).thenReturn(Optional.of(organizer));
+
+		assertThatThrownBy(() -> eventService.createEvent(request))
+			.isInstanceOf(EventValidationException.class);
+	}
+
+	@Test
+	void shouldPublishDraftEvent() {
+		Event event = new Event();
+		event.setId(UUID.randomUUID());
+		event.setStatus(EventStatus.DRAFT);
+		event.setOrganizer(organizer);
+
+		when(eventRepository.findById(event.getId())).thenReturn(Optional.of(event));
+		when(eventRepository.save(event)).thenReturn(event);
+
+		Instant start = Instant.now().plusSeconds(3600);
+		Instant end = start.plusSeconds(3600);
+		UpdateEventRequest request = new UpdateEventRequest(
+			"Launch Party",
+			"Desc",
+			"Berlin",
+			start,
+			end,
+			EventStatus.PUBLISHED
+		);
+
+		EventResponse response = eventService.updateEvent(event.getId(), request);
+
+		assertThat(response.status()).isEqualTo(EventStatus.PUBLISHED);
+		assertThat(event.getStatus()).isEqualTo(EventStatus.PUBLISHED);
+		verify(eventRepository).save(event);
+	}
+
+	@Test
+	void shouldFailToPublishNonDraftEvent() {
+		Event event = new Event();
+		event.setId(UUID.randomUUID());
+		event.setStatus(EventStatus.PUBLISHED);
+		event.setOrganizer(organizer);
+
+		when(eventRepository.findById(event.getId())).thenReturn(Optional.of(event));
+
+		UpdateEventRequest request = new UpdateEventRequest(
+			"Launch Party",
+			"Desc",
+			"Berlin",
+			Instant.now().plusSeconds(3600),
+			Instant.now().plusSeconds(7200),
+			EventStatus.PUBLISHED
+		);
+
+		assertThatThrownBy(() -> eventService.updateEvent(event.getId(), request))
+			.isInstanceOf(EventValidationException.class);
+	}
+
+	@Test
+	void shouldThrowWhenEventNotFoundOnPublish() {
+		UUID eventId = UUID.randomUUID();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
+
+		UpdateEventRequest request = new UpdateEventRequest(
+			"Launch Party",
+			"Desc",
+			"Berlin",
+			Instant.now().plusSeconds(3600),
+			Instant.now().plusSeconds(7200),
+			EventStatus.PUBLISHED
+		);
+
+		assertThatThrownBy(() -> eventService.updateEvent(eventId, request))
+			.isInstanceOf(EventNotFoundException.class);
+	}
+
+	@Test
+	void shouldDeleteEvent() {
+		UUID eventId = UUID.randomUUID();
+		when(eventRepository.existsById(eventId)).thenReturn(true);
+		doNothing().when(eventRepository).deleteById(eventId);
+
+		eventService.deleteEvent(eventId);
+
+		verify(eventRepository).deleteById(eventId);
+	}
+
+	@Test
+	void shouldThrowWhenDeletingMissingEvent() {
+		UUID eventId = UUID.randomUUID();
+		when(eventRepository.existsById(eventId)).thenReturn(false);
+
+		assertThatThrownBy(() -> eventService.deleteEvent(eventId))
+			.isInstanceOf(EventNotFoundException.class);
+
+		verify(eventRepository, never()).deleteById(any());
+	}
+
+	private ValidRequestBuilder validRequestBuilder() {
+		return new ValidRequestBuilder();
+	}
+
+	private class ValidRequestBuilder {
+		private String title = "Sample Event";
+		private String description = "Description";
+		private String location = "Online";
+		private Instant start = Instant.now().plusSeconds(3600);
+		private Instant end = Instant.now().plusSeconds(7200);
+		private EventStatus status = null;
+
+		ValidRequestBuilder status(EventStatus status) {
+			this.status = status;
+			return this;
+		}
+
+		CreateEventRequest build() {
+			return new CreateEventRequest(
+				organizerId,
+				title,
+				description,
+				location,
+				start,
+				end,
+				status
+			);
+		}
 	}
 }

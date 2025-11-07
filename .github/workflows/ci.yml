@@ -31,4 +31,4 @@ jobs:
         run: java -version
 
       - name: Build and test
-        run: mvn -B clean verify
+        run: ./mvnw -B clean verify

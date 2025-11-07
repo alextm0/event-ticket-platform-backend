@@ -1,6 +1,8 @@
 package com.project.event_ticket_platform.controllers.advice;
 
 import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
+import com.project.event_ticket_platform.exceptions.EventNotFoundException;
+import com.project.event_ticket_platform.exceptions.EventValidationException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -27,6 +29,22 @@ public class GlobalExceptionHandler {
 	public ProblemDetail handleOrganizerNotFound(OrganizerNotFoundException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
 		problem.setTitle("Organizer not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(EventValidationException.class)
+	public ProblemDetail handleEventValidation(EventValidationException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Invalid event data");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(EventNotFoundException.class)
+	public ProblemDetail handleEventNotFound(EventNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("Event not found");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}
