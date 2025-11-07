@@ -1,6 +1,7 @@
 package com.project.event_ticket_platform.controllers.advice;
 
 import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
+import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -18,6 +19,14 @@ public class GlobalExceptionHandler {
 	public ProblemDetail handleEmailAlreadyExists(EmailAlreadyExistsException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
 		problem.setTitle("Email already registered");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(OrganizerNotFoundException.class)
+	public ProblemDetail handleOrganizerNotFound(OrganizerNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("Organizer not found");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}

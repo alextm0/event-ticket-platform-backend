@@ -69,6 +69,7 @@ CREATE TABLE event_staff (
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     staff_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_event_staff UNIQUE (event_id, staff_id)
 );
 

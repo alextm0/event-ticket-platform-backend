@@ -7,11 +7,14 @@ import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
 import com.project.event_ticket_platform.services.UserService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -29,16 +32,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = UserController.class)
+@Import(UserControllerTest.TestConfig.class)
+@TestPropertySource(properties = "app.jpa.auditing.enabled=false")
 class UserControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
-	@MockBean
+	@Autowired
 	private UserService userService;
-
-	@MockBean
-	private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
 	@Test
 	void shouldCreateUser() throws Exception {
@@ -54,7 +56,7 @@ class UserControllerTest {
 
 		when(userService.createUser(any(CreateUserRequest.class))).thenReturn(response);
 
-		mockMvc.perform(post("/api/users")
+		mockMvc.perform(post("/api/v1/users")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -65,7 +67,7 @@ class UserControllerTest {
 					}
 					"""))
 			.andExpect(status().isCreated())
-			.andExpect(header().string("Location", "/api/users/" + generatedId))
+			.andExpect(header().string("Location", "/api/v1/users/" + generatedId))
 			.andExpect(jsonPath("$.id").value(generatedId.toString()))
 			.andExpect(jsonPath("$.name").value("Jane Doe"))
 			.andExpect(jsonPath("$.email").value("jane.doe@example.com"))
@@ -84,7 +86,7 @@ class UserControllerTest {
 		when(userService.createUser(any(CreateUserRequest.class)))
 			.thenThrow(new EmailAlreadyExistsException("jane.doe@example.com"));
 
-		mockMvc.perform(post("/api/users")
+		mockMvc.perform(post("/api/v1/users")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -109,10 +111,19 @@ class UserControllerTest {
 
 		when(userService.getAllUsers()).thenReturn(List.of(response));
 
-		mockMvc.perform(get("/api/users"))
+		mockMvc.perform(get("/api/v1/users"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].name").value("John Doe"))
 			.andExpect(jsonPath("$[0].email").value("john.doe@example.com"))
 			.andExpect(jsonPath("$[0].role").value("STAFF"));
+	}
+
+	@TestConfiguration
+	static class TestConfig {
+
+		@Bean
+		UserService userService() {
+			return Mockito.mock(UserService.class);
+		}
 	}
 }

@@ -15,7 +15,7 @@ import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
 
 	private final UserService userService;
@@ -28,7 +28,7 @@ public class UserController {
 	public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
 		UserResponse createdUser = userService.createUser(request);
 		return ResponseEntity
-			.created(URI.create("/api/users/" + createdUser.id()))
+			.created(URI.create("/api/v1/users/" + createdUser.id()))
 			.body(createdUser);
 	}
 
