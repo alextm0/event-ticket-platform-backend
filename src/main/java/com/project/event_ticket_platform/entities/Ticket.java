@@ -1,5 +1,6 @@
 package com.project.event_ticket_platform.entities;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -47,7 +48,7 @@ public class Ticket {
 	@Column(name = "status", nullable = false)
 	private TicketStatus status = TicketStatus.PURCHASED;
 
-	@OneToOne(fetch = FetchType.LAZY, optional = false)
+	@OneToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.ALL, orphanRemoval = true)
 	@JoinColumn(name = "qr_code_id", nullable = false, unique = true)
 	private QrCode qrCode;
 

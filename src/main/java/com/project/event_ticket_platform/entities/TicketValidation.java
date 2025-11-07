@@ -47,7 +47,7 @@ public class TicketValidation {
 	@Column(name = "validation_method", nullable = false)
 	private TicketValidationMethodEnum validationMethod;
 
-	@ManyToOne(fetch = FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "ticket_id", nullable = false)
 	private Ticket ticket;
 }
