@@ -1,6 +1,6 @@
-package com.project.event_ticket_platform.dto;
+package com.project.event_ticket_platform.dtos;
 
-import com.project.event_ticket_platform.entity.UserRole;
+import com.project.event_ticket_platform.entities.UserRole;
 
 import java.time.Instant;
 import java.util.UUID;

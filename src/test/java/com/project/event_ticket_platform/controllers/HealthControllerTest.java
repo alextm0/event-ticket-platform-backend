@@ -1,4 +1,4 @@
-package com.project.event_ticket_platform.controller;
+package com.project.event_ticket_platform.controllers;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

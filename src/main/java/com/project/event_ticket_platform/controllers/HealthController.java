@@ -1,4 +1,4 @@
-package com.project.event_ticket_platform.controller;
+package com.project.event_ticket_platform.controllers;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

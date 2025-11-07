@@ -1,6 +1,6 @@
-package com.project.event_ticket_platform.controller.advice;
+package com.project.event_ticket_platform.controllers.advice;
 
-import com.project.event_ticket_platform.exception.EmailAlreadyExistsException;
+import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;

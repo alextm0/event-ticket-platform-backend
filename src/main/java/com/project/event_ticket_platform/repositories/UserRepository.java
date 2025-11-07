@@ -1,6 +1,6 @@
-package com.project.event_ticket_platform.repository;
+package com.project.event_ticket_platform.repositories;
 
-import com.project.event_ticket_platform.entity.User;
+import com.project.event_ticket_platform.entities.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;

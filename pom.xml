@@ -119,6 +119,16 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>${flyway.version}</version>
+				<configuration>
+					<url>jdbc:postgresql://ep-solitary-firefly-agn7xprl-pooler.c-2.eu-central-1.aws.neon.tech/neondb</url>
+					<user>neondb_owner</user>
+					<password>npg_v6KrYzMFQ9wg</password>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
