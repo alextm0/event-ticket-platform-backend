@@ -1,4 +1,4 @@
-package com.project.event_ticket_platform.exception;
+package com.project.event_ticket_platform.exceptions;
 
 public class EmailAlreadyExistsException extends RuntimeException {
 

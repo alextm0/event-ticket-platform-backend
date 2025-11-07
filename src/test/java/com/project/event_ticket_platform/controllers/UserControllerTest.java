@@ -1,10 +1,10 @@
-package com.project.event_ticket_platform.controller;
+package com.project.event_ticket_platform.controllers;
 
-import com.project.event_ticket_platform.dto.CreateUserRequest;
-import com.project.event_ticket_platform.dto.UserResponse;
-import com.project.event_ticket_platform.entity.UserRole;
-import com.project.event_ticket_platform.exception.EmailAlreadyExistsException;
-import com.project.event_ticket_platform.service.UserService;
+import com.project.event_ticket_platform.dtos.CreateUserRequest;
+import com.project.event_ticket_platform.dtos.UserResponse;
+import com.project.event_ticket_platform.entities.UserRole;
+import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
+import com.project.event_ticket_platform.services.UserService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,8 +1,8 @@
-package com.project.event_ticket_platform.controller;
+package com.project.event_ticket_platform.controllers;
 
-import com.project.event_ticket_platform.dto.CreateUserRequest;
-import com.project.event_ticket_platform.dto.UserResponse;
-import com.project.event_ticket_platform.service.UserService;
+import com.project.event_ticket_platform.dtos.CreateUserRequest;
+import com.project.event_ticket_platform.dtos.UserResponse;
+import com.project.event_ticket_platform.services.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
