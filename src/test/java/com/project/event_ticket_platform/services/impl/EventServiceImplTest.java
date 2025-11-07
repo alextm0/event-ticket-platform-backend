@@ -47,14 +47,13 @@ class EventServiceImplTest {
 	private UserRepository userRepository;
 
 	private EventServiceImpl eventService;
-	private EventMapper eventMapper;
 
 	private User organizer;
 	private UUID organizerId;
 
 	@BeforeEach
 	void setup() {
-		eventMapper = Mappers.getMapper(EventMapper.class);
+		EventMapper eventMapper = Mappers.getMapper(EventMapper.class);
 		eventService = new EventServiceImpl(eventRepository, userRepository, eventMapper);
 
 		organizerId = UUID.randomUUID();
@@ -186,10 +185,10 @@ class EventServiceImplTest {
 	}
 
 	@Test
-	void shouldFailToPublishNonDraftEvent() {
+	void shouldFailForUnsupportedStatusTransition() {
 		Event event = new Event();
 		event.setId(UUID.randomUUID());
-		event.setStatus(EventStatus.PUBLISHED);
+		event.setStatus(EventStatus.CANCELLED);
 		event.setOrganizer(organizer);
 
 		when(eventRepository.findById(event.getId())).thenReturn(Optional.of(event));
@@ -205,6 +204,55 @@ class EventServiceImplTest {
 
 		assertThatThrownBy(() -> eventService.updateEvent(event.getId(), request))
 			.isInstanceOf(EventValidationException.class);
+	}
+
+	@Test
+	void shouldAllowNoOpStatusUpdate() {
+		Event event = new Event();
+		event.setId(UUID.randomUUID());
+		event.setStatus(EventStatus.PUBLISHED);
+		event.setOrganizer(organizer);
+
+		when(eventRepository.findById(event.getId())).thenReturn(Optional.of(event));
+		when(eventRepository.save(event)).thenReturn(event);
+
+		UpdateEventRequest request = new UpdateEventRequest(
+			"Launch Party",
+			"Desc",
+			"Berlin",
+			Instant.now().plusSeconds(3600),
+			Instant.now().plusSeconds(7200),
+			EventStatus.PUBLISHED
+		);
+
+		eventService.updateEvent(event.getId(), request);
+
+		verify(eventRepository).save(event);
+	}
+
+	@Test
+	void shouldAllowPublishedToCancelledTransition() {
+		Event event = new Event();
+		event.setId(UUID.randomUUID());
+		event.setStatus(EventStatus.PUBLISHED);
+		event.setOrganizer(organizer);
+
+		when(eventRepository.findById(event.getId())).thenReturn(Optional.of(event));
+		when(eventRepository.save(event)).thenReturn(event);
+
+		UpdateEventRequest request = new UpdateEventRequest(
+			"Launch Party",
+			"Desc",
+			"Berlin",
+			Instant.now().plusSeconds(3600),
+			Instant.now().plusSeconds(7200),
+			EventStatus.CANCELLED
+		);
+
+		EventResponse response = eventService.updateEvent(event.getId(), request);
+
+		assertThat(response.status()).isEqualTo(EventStatus.CANCELLED);
+		verify(eventRepository).save(event);
 	}
 
 	@Test
@@ -228,23 +276,24 @@ class EventServiceImplTest {
 	@Test
 	void shouldDeleteEvent() {
 		UUID eventId = UUID.randomUUID();
-		when(eventRepository.existsById(eventId)).thenReturn(true);
-		doNothing().when(eventRepository).deleteById(eventId);
+		Event event = new Event();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		doNothing().when(eventRepository).delete(event);
 
 		eventService.deleteEvent(eventId);
 
-		verify(eventRepository).deleteById(eventId);
+		verify(eventRepository).delete(event);
 	}
 
 	@Test
 	void shouldThrowWhenDeletingMissingEvent() {
 		UUID eventId = UUID.randomUUID();
-		when(eventRepository.existsById(eventId)).thenReturn(false);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> eventService.deleteEvent(eventId))
 			.isInstanceOf(EventNotFoundException.class);
 
-		verify(eventRepository, never()).deleteById(any());
+		verify(eventRepository, never()).delete(any());
 	}
 
 	private ValidRequestBuilder validRequestBuilder() {
@@ -255,8 +304,9 @@ class EventServiceImplTest {
 		private String title = "Sample Event";
 		private String description = "Description";
 		private String location = "Online";
-		private Instant start = Instant.now().plusSeconds(3600);
-		private Instant end = Instant.now().plusSeconds(7200);
+		private Instant baseTime = Instant.now();
+		private Instant start = baseTime.plusSeconds(3600);
+		private Instant end = baseTime.plusSeconds(7200);
 		private EventStatus status = null;
 
 		ValidRequestBuilder status(EventStatus status) {

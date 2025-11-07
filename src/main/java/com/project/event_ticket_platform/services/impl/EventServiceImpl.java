@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -45,6 +46,7 @@ public class EventServiceImpl implements EventService {
 
 		Event event = eventMapper.toEntity(request);
 		event.setOrganizer(organizer);
+		validateNewEvent(event);
 		Event savedEvent = eventRepository.save(event);
 		return eventMapper.toResponse(savedEvent);
 	}
@@ -62,9 +64,23 @@ public class EventServiceImpl implements EventService {
 		Event event = eventRepository.findById(eventId)
 			.orElseThrow(() -> new EventNotFoundException(eventId));
 
-		validateStatusTransition(event.getStatus(), request.status());
+		if (request.title() != null && request.title().isBlank()) {
+			throw new EventValidationException("Event title cannot be blank.");
+		}
+		if (request.description() != null && request.description().isBlank()) {
+			throw new EventValidationException("Event description cannot be blank.");
+		}
+		if (request.location() != null && request.location().isBlank()) {
+			throw new EventValidationException("Event location cannot be blank.");
+		}
 
+		EventStatus requestedStatus = request.status() != null ? request.status() : event.getStatus();
+		validateStatusTransition(event.getStatus(), requestedStatus);
+
+		boolean startChanged = request.startTime() != null;
 		eventMapper.updateEvent(request, event);
+		event.setStatus(requestedStatus);
+		validateUpdatedEvent(event, startChanged);
 
 		Event saved = eventRepository.save(event);
 		return eventMapper.toResponse(saved);
@@ -73,10 +89,58 @@ public class EventServiceImpl implements EventService {
 	@Override
 	@Transactional
 	public void deleteEvent(UUID eventId) {
-		if (!eventRepository.existsById(eventId)) {
-			throw new EventNotFoundException(eventId);
+		Event event = eventRepository.findById(eventId)
+			.orElseThrow(() -> new EventNotFoundException(eventId));
+		eventRepository.delete(event);
+	}
+
+	private void validateNewEvent(Event event) {
+		if (isBlank(event.getTitle())) {
+			throw new EventValidationException("Event title is required.");
 		}
-		eventRepository.deleteById(eventId);
+		if (isBlank(event.getDescription())) {
+			throw new EventValidationException("Event description is required.");
+		}
+		if (isBlank(event.getLocation())) {
+			throw new EventValidationException("Event location is required.");
+		}
+
+		Instant start = event.getStartTime();
+		Instant end = event.getEndTime();
+		Instant now = Instant.now();
+
+		if (start == null || end == null) {
+			throw new EventValidationException("Start and end times are required.");
+		}
+
+		if (!end.isAfter(start)) {
+			throw new EventValidationException("Event end time must be after the start time.");
+		}
+
+		if (start.isBefore(now)) {
+			throw new EventValidationException("Event start time must be in the future.");
+		}
+	}
+
+	private void validateUpdatedEvent(Event event, boolean startChanged) {
+		Instant start = event.getStartTime();
+		Instant end = event.getEndTime();
+
+		if (start == null || end == null) {
+			throw new EventValidationException("Start and end times are required.");
+		}
+
+		if (!end.isAfter(start)) {
+			throw new EventValidationException("Event end time must be after the start time.");
+		}
+
+		if (startChanged && start.isBefore(Instant.now())) {
+			throw new EventValidationException("Updated start time must be in the future.");
+		}
+	}
+
+	private boolean isBlank(String value) {
+		return value == null || value.trim().isEmpty();
 	}
 
 	private void validateStatusTransition(EventStatus currentStatus, EventStatus requestedStatus) {
@@ -85,16 +149,17 @@ public class EventServiceImpl implements EventService {
 		}
 
 		if (currentStatus == requestedStatus) {
-			if (currentStatus == EventStatus.DRAFT) {
-				return;
-			}
-			throw new EventValidationException("Only draft events can be modified.");
+			return;
 		}
 
 		if (currentStatus == EventStatus.DRAFT && requestedStatus == EventStatus.PUBLISHED) {
 			return;
 		}
 
-		throw new EventValidationException("Only draft events can transition to PUBLISHED.");
+		if (currentStatus == EventStatus.PUBLISHED && requestedStatus == EventStatus.CANCELLED) {
+			return;
+		}
+
+		throw new EventValidationException("Invalid status transition requested.");
 	}
 }

@@ -5,7 +5,6 @@ import com.project.event_ticket_platform.dtos.EventResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
-import com.project.event_ticket_platform.exceptions.EventValidationException;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -13,8 +12,6 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
-
-import java.time.Instant;
 
 @Mapper(
 	componentModel = "spring",
@@ -49,13 +46,11 @@ public abstract class EventMapper {
 	@AfterMapping
 	protected void afterCreateMapping(CreateEventRequest request, @MappingTarget Event event) {
 		trimStrings(event);
-		validateEventTimes(event);
 	}
 
 	@AfterMapping
 	protected void afterUpdateMapping(UpdateEventRequest request, @MappingTarget Event event) {
 		trimStrings(event);
-		validateEventTimes(event);
 	}
 
 	private void trimStrings(Event event) {
@@ -70,21 +65,4 @@ public abstract class EventMapper {
 		}
 	}
 
-	private void validateEventTimes(Event event) {
-		Instant start = event.getStartTime();
-		Instant end = event.getEndTime();
-		Instant now = Instant.now();
-
-		if (start == null || end == null) {
-			throw new EventValidationException("Start and end times are required.");
-		}
-
-		if (!end.isAfter(start)) {
-			throw new EventValidationException("Event end time must be after the start time.");
-		}
-
-		if (start.isBefore(now)) {
-			throw new EventValidationException("Event start time must be in the future.");
-		}
-	}
 }
