@@ -1,0 +1,119 @@
+package com.project.event_ticket_platform.controllers;
+
+import com.project.event_ticket_platform.dtos.PurchaseTicketRequest;
+import com.project.event_ticket_platform.dtos.PurchaseTicketResponse;
+import com.project.event_ticket_platform.dtos.QrCodeResponse;
+import com.project.event_ticket_platform.dtos.TicketResponse;
+import com.project.event_ticket_platform.services.TicketService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1")
+@Tag(name = "Tickets", description = "APIs for purchasing and managing tickets")
+public class TicketController {
+
+	private final TicketService ticketService;
+
+	public TicketController(TicketService ticketService) {
+		this.ticketService = ticketService;
+	}
+
+	@Operation(
+		summary = "Purchase tickets",
+		description = "Purchase tickets for a published event. Returns order with generated QR codes.",
+		responses = {
+			@ApiResponse(responseCode = "201", description = "Tickets purchased successfully"),
+			@ApiResponse(responseCode = "400", description = "Insufficient tickets available or event not published"),
+			@ApiResponse(responseCode = "404", description = "Event or ticket type not found"),
+			@ApiResponse(responseCode = "500", description = "QR code generation failed")
+		}
+	)
+	@PostMapping("/published-event/{published_event_id}/ticket-types/{ticket_type_id}")
+	public ResponseEntity<PurchaseTicketResponse> purchaseTickets(
+		@Parameter(description = "Published event ID", required = true)
+		@PathVariable("published_event_id") UUID publishedEventId,
+		@Parameter(description = "Ticket type ID", required = true)
+		@PathVariable("ticket_type_id") UUID ticketTypeId,
+		@Parameter(description = "User ID", required = true)
+		@RequestHeader("X-User-Id") UUID userId,
+		@Valid @RequestBody PurchaseTicketRequest request
+	) {
+		PurchaseTicketResponse response = ticketService.purchaseTickets(publishedEventId, ticketTypeId, userId, request);
+		return ResponseEntity
+			.created(URI.create("/api/v1/tickets/" + response.orderId()))
+			.body(response);
+	}
+
+	@Operation(
+		summary = "List user tickets",
+		description = "Retrieve all tickets for the authenticated user",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Successfully retrieved tickets")
+		}
+	)
+	@GetMapping("/tickets")
+	public ResponseEntity<List<TicketResponse>> listUserTickets(
+		@Parameter(description = "User ID", required = true)
+		@RequestHeader("X-User-Id") UUID userId
+	) {
+		List<TicketResponse> tickets = ticketService.listUserTickets(userId);
+		return ResponseEntity.ok(tickets);
+	}
+
+	@Operation(
+		summary = "Get ticket by ID",
+		description = "Retrieve a specific ticket by ID for the authenticated user",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Successfully retrieved ticket"),
+			@ApiResponse(responseCode = "403", description = "Unauthorized access to ticket"),
+			@ApiResponse(responseCode = "404", description = "Ticket not found")
+		}
+	)
+	@GetMapping("/tickets/{ticket_id}")
+	public ResponseEntity<TicketResponse> getTicketById(
+		@Parameter(description = "Ticket ID", required = true)
+		@PathVariable("ticket_id") UUID ticketId,
+		@Parameter(description = "User ID", required = true)
+		@RequestHeader("X-User-Id") UUID userId
+	) {
+		TicketResponse ticket = ticketService.getTicketById(ticketId, userId);
+		return ResponseEntity.ok(ticket);
+	}
+
+	@Operation(
+		summary = "Get ticket QR code",
+		description = "Retrieve the QR code for a specific ticket",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Successfully retrieved QR code"),
+			@ApiResponse(responseCode = "403", description = "Unauthorized access to ticket"),
+			@ApiResponse(responseCode = "404", description = "Ticket not found")
+		}
+	)
+	@GetMapping("/tickets/{ticket_id}/qr-code")
+	public ResponseEntity<QrCodeResponse> getTicketQrCode(
+		@Parameter(description = "Ticket ID", required = true)
+		@PathVariable("ticket_id") UUID ticketId,
+		@Parameter(description = "User ID", required = true)
+		@RequestHeader("X-User-Id") UUID userId
+	) {
+		QrCodeResponse qrCode = ticketService.getTicketQrCode(ticketId, userId);
+		return ResponseEntity.ok(qrCode);
+	}
+}
+

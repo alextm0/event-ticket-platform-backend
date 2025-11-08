@@ -31,6 +31,9 @@ public class QrCode {
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
+	@Column(name = "code_data", columnDefinition = "TEXT")
+	private String codeData;
+
 	@CreatedDate
 	@Column(name = "generated_date_time", nullable = false, updatable = false)
 	private Instant generatedDateTime;
