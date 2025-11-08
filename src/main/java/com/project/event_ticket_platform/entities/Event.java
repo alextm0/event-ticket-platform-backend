@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -30,7 +31,7 @@ import java.util.UUID;
 @Setter
 @EqualsAndHashCode(of = "id")
 @Entity
-@Table(name = "events")
+@Table(name = "events", indexes = @Index(name = "idx_events_status", columnList = "status"))
 @org.hibernate.annotations.SQLInsert(
 	sql = "INSERT INTO events (created_at, description, end_time, location, organizer_id, start_time, status, title, updated_at, id) " +
 		  "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS event_status), ?, ?, ?)"

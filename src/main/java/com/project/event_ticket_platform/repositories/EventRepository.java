@@ -20,27 +20,32 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 	@Query("SELECT DISTINCT e FROM Event e LEFT JOIN FETCH e.ticketTypes LEFT JOIN FETCH e.organizer WHERE e.id IN :ids")
 	List<Event> findAllByIdsWithRelations(@Param("ids") List<UUID> ids);
 
-	@Query(value = "SELECT e.id FROM events e WHERE e.status::text = :status ORDER BY e.created_at DESC", nativeQuery = true)
-	List<UUID> findEventIdsByStatusNative(@Param("status") String status);
+	@Query(
+		value = "SELECT e.id FROM events e WHERE e.status::text = :status ORDER BY e.created_at DESC LIMIT :limit OFFSET :offset",
+		nativeQuery = true
+	)
+	List<UUID> findEventIdsByStatusNative(
+		@Param("status") String status,
+		@Param("limit") int limit,
+		@Param("offset") int offset
+	);
+
+	@Query(value = "SELECT COUNT(*) FROM events e WHERE e.status::text = :status", nativeQuery = true)
+	long countEventsByStatusNative(@Param("status") String status);
 
 	default Page<Event> findAllByStatus(EventStatus status, Pageable pageable) {
-		// Get all matching IDs
-		List<UUID> allIds = findEventIdsByStatusNative(status.name());
-		
-		if (allIds.isEmpty()) {
+		long total = countEventsByStatusNative(status.name());
+
+		if (total == 0) {
 			return Page.empty(pageable);
 		}
-		
-		// Apply pagination manually
-		int start = (int) pageable.getOffset();
-		int end = Math.min(start + pageable.getPageSize(), allIds.size());
-		
-		if (start >= allIds.size()) {
+
+		List<UUID> paginatedIds = findEventIdsByStatusNative(status.name(), pageable.getPageSize(), (int) pageable.getOffset());
+
+		if (paginatedIds.isEmpty()) {
 			return Page.empty(pageable);
 		}
-		
-		List<UUID> paginatedIds = allIds.subList(start, end);
-		
+
 		// Fetch events with relationships
 		List<Event> events = findAllByIdsWithRelations(paginatedIds);
 		
@@ -56,7 +61,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 				orderedEvents.add(event);
 			}
 		}
-		
-		return new PageImpl<>(orderedEvents, pageable, allIds.size());
+
+		return new PageImpl<>(orderedEvents, pageable, total);
 	}
 }

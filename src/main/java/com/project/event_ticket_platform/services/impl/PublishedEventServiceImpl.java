@@ -20,6 +20,8 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class PublishedEventServiceImpl implements PublishedEventService {
 
+	private static final int MAX_PAGE_SIZE = 100;
+
 	private final EventRepository eventRepository;
 	private final PublishedEventMapper publishedEventMapper;
 
@@ -30,7 +32,16 @@ public class PublishedEventServiceImpl implements PublishedEventService {
 
 	@Override
 	public Page<PublishedEventResponse> listPublishedEvents(int page, int size) {
-		Pageable pageable = PageRequest.of(page, size);
+		if (page < 0) {
+			throw new IllegalArgumentException("Page index must be zero or positive.");
+		}
+		if (size <= 0) {
+			throw new IllegalArgumentException("Page size must be greater than zero.");
+		}
+
+		int effectiveSize = Math.min(size, MAX_PAGE_SIZE);
+
+		Pageable pageable = PageRequest.of(page, effectiveSize);
 		Page<Event> publishedEvents = eventRepository.findAllByStatus(EventStatus.PUBLISHED, pageable);
 		return publishedEvents.map(publishedEventMapper::toResponse);
 	}

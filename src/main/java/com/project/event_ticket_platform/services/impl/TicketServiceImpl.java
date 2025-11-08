@@ -70,6 +70,12 @@ public class TicketServiceImpl implements TicketService {
 	@Override
 	@Transactional
 	public PurchaseTicketResponse purchaseTicket(UUID eventId, UUID ticketTypeId, PurchaseTicketRequest request, UUID userId) {
+		Integer quantity = request.quantity();
+		if (quantity == null || quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be at least 1");
+		}
+		int requestedQuantity = quantity;
+
 		// Validate event exists and is published
 		Event event = eventRepository.findById(eventId)
 			.orElseThrow(() -> new EventNotFoundException(eventId));
@@ -97,9 +103,9 @@ public class TicketServiceImpl implements TicketService {
 
 		// Check ticket availability with locked entity to prevent overbooking
 		int availableTickets = ticketType.getTotalQuantity() - ticketType.getSoldCount();
-		if (availableTickets < request.quantity()) {
+		if (availableTickets < requestedQuantity) {
 			throw new InsufficientTicketsException(
-				String.format("Only %d tickets available, but %d requested", availableTickets, request.quantity())
+				String.format("Only %d tickets available, but %d requested", availableTickets, requestedQuantity)
 			);
 		}
 
@@ -108,11 +114,11 @@ public class TicketServiceImpl implements TicketService {
 		order.setUser(user);
 		order.setBuyerName(user.getName());
 		order.setBuyerEmail(user.getEmail());
-		order.setTotalAmount(ticketType.getPrice().multiply(BigDecimal.valueOf(request.quantity())));
+		order.setTotalAmount(ticketType.getPrice().multiply(BigDecimal.valueOf(requestedQuantity)));
 		order.setStatus(OrderStatus.PAID);
 
 		// Create tickets with QR codes
-		for (int i = 0; i < request.quantity(); i++) {
+		for (int i = 0; i < requestedQuantity; i++) {
 			Ticket ticket = new Ticket();
 			ticket.setTicketType(ticketType);
 			ticket.setStatus(TicketStatus.PURCHASED);
@@ -126,7 +132,7 @@ public class TicketServiceImpl implements TicketService {
 		}
 
 		// Update sold count atomically (entity is locked, preventing concurrent modifications)
-		ticketType.setSoldCount(ticketType.getSoldCount() + request.quantity());
+		ticketType.setSoldCount(ticketType.getSoldCount() + requestedQuantity);
 		ticketTypeRepository.save(ticketType);
 
 		// Save order (cascades to tickets and QR codes)

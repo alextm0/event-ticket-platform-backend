@@ -7,6 +7,7 @@ import com.project.event_ticket_platform.entities.UserRole;
 import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
 import com.project.event_ticket_platform.repositories.UserRepository;
 import com.project.event_ticket_platform.services.UserService;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,8 +30,14 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional
 	public UserResponse createUser(CreateUserRequest request) {
-		if (userRepository.existsByEmail(request.email())) {
-			throw new EmailAlreadyExistsException(request.email());
+		String name = request.name();
+		if (name == null || name.isBlank()) {
+			throw new IllegalArgumentException("Name cannot be null or blank");
+		}
+
+		String email = request.email();
+		if (email == null || email.isBlank()) {
+			throw new IllegalArgumentException("Email cannot be null or blank");
 		}
 
 		String rawPassword = request.password();
@@ -40,8 +47,8 @@ public class UserServiceImpl implements UserService {
 
 		User user = new User();
 		user.setId(UUID.randomUUID());
-		user.setName(request.name());
-		user.setEmail(request.email());
+		user.setName(name);
+		user.setEmail(email);
 		user.setPasswordHash(passwordEncoder.encode(rawPassword));
 		user.setRole(request.role() != null ? request.role() : UserRole.ATTENDEE);
 
@@ -49,7 +56,10 @@ public class UserServiceImpl implements UserService {
 			User savedUser = userRepository.save(user);
 			return toResponse(savedUser);
 		} catch (DataIntegrityViolationException ex) {
-			throw new EmailAlreadyExistsException(request.email());
+			if (isEmailUniqueConstraintViolation(ex)) {
+				throw new EmailAlreadyExistsException(email);
+			}
+			throw ex;
 		}
 	}
 
@@ -71,6 +81,25 @@ public class UserServiceImpl implements UserService {
 			user.getCreatedAt(),
 			user.getUpdatedAt()
 		);
+	}
+
+	private boolean isEmailUniqueConstraintViolation(DataIntegrityViolationException exception) {
+		Throwable cause = exception.getCause();
+		while (cause != null) {
+			if (cause instanceof ConstraintViolationException constraintViolation) {
+				String constraintName = constraintViolation.getConstraintName();
+				if (constraintName != null && constraintName.toLowerCase().contains("email")) {
+					return true;
+				}
+			}
+
+			String message = cause.getMessage();
+			if (message != null && message.toLowerCase().contains("email")) {
+				return true;
+			}
+			cause = cause.getCause();
+		}
+		return false;
 	}
 }
 
