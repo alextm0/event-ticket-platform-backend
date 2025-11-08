@@ -58,7 +58,7 @@ public class Event {
 	private Instant endTime;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
+	@Column(name = "status", nullable = false, columnDefinition = "event_status")
 	private EventStatus status = EventStatus.DRAFT;
 
 	@CreatedDate
