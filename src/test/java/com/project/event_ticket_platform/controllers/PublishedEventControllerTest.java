@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -52,38 +55,77 @@ class PublishedEventControllerTest {
 	}
 
 	@Test
-	@DisplayName("GET /api/v1/published-events should return list of published events")
-	void searchPublishedEvents_Success() throws Exception {
+	@DisplayName("GET /api/v1/published-events should return paginated list of published events")
+	void listPublishedEvents_Success() throws Exception {
 		// Arrange
-		List<PublishedEventResponse> events = List.of(publishedEventResponse);
-		when(publishedEventService.searchPublishedEvents()).thenReturn(events);
+		Page<PublishedEventResponse> eventPage = new PageImpl<>(
+			List.of(publishedEventResponse),
+			PageRequest.of(0, 20),
+			1
+		);
+		when(publishedEventService.listPublishedEvents(0, 20)).thenReturn(eventPage);
 
 		// Act & Assert
 		mockMvc.perform(get("/api/v1/published-events")
+				.param("page", "0")
+				.param("size", "20")
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$").isArray())
-			.andExpect(jsonPath("$[0].id").value(eventId.toString()))
-			.andExpect(jsonPath("$[0].title").value("Spring Music Festival"))
-			.andExpect(jsonPath("$[0].status").value("PUBLISHED"));
+			.andExpect(jsonPath("$.content").isArray())
+			.andExpect(jsonPath("$.content[0].id").value(eventId.toString()))
+			.andExpect(jsonPath("$.content[0].title").value("Spring Music Festival"))
+			.andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.totalElements").value(1))
+			.andExpect(jsonPath("$.number").value(0))
+			.andExpect(jsonPath("$.size").value(20));
 
-		verify(publishedEventService).searchPublishedEvents();
+		verify(publishedEventService).listPublishedEvents(0, 20);
 	}
 
 	@Test
-	@DisplayName("GET /api/v1/published-events should return empty list when no events")
-	void searchPublishedEvents_EmptyList() throws Exception {
+	@DisplayName("GET /api/v1/published-events should return empty page when no events")
+	void listPublishedEvents_EmptyList() throws Exception {
 		// Arrange
-		when(publishedEventService.searchPublishedEvents()).thenReturn(new ArrayList<>());
+		Page<PublishedEventResponse> emptyPage = new PageImpl<>(
+			new ArrayList<>(),
+			PageRequest.of(0, 20),
+			0
+		);
+		when(publishedEventService.listPublishedEvents(0, 20)).thenReturn(emptyPage);
+
+		// Act & Assert
+		mockMvc.perform(get("/api/v1/published-events")
+				.param("page", "0")
+				.param("size", "20")
+				.contentType(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content").isArray())
+			.andExpect(jsonPath("$.content").isEmpty())
+			.andExpect(jsonPath("$.totalElements").value(0));
+
+		verify(publishedEventService).listPublishedEvents(0, 20);
+	}
+
+	@Test
+	@DisplayName("GET /api/v1/published-events should use default pagination when params not provided")
+	void listPublishedEvents_DefaultPagination() throws Exception {
+		// Arrange
+		Page<PublishedEventResponse> eventPage = new PageImpl<>(
+			List.of(publishedEventResponse),
+			PageRequest.of(0, 20),
+			1
+		);
+		when(publishedEventService.listPublishedEvents(0, 20)).thenReturn(eventPage);
 
 		// Act & Assert
 		mockMvc.perform(get("/api/v1/published-events")
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$").isArray())
-			.andExpect(jsonPath("$").isEmpty());
+			.andExpect(jsonPath("$.content").isArray())
+			.andExpect(jsonPath("$.number").value(0))
+			.andExpect(jsonPath("$.size").value(20));
 
-		verify(publishedEventService).searchPublishedEvents();
+		verify(publishedEventService).listPublishedEvents(0, 20);
 	}
 
 	@Test

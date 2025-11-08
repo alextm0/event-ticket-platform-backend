@@ -9,6 +9,7 @@ import com.project.event_ticket_platform.exceptions.*;
 import com.project.event_ticket_platform.mappers.QrCodeMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.repositories.*;
+import com.project.event_ticket_platform.services.impl.TicketServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,7 @@ class TicketServiceTest {
 	private QrCodeMapper qrCodeMapper;
 
 	@InjectMocks
-	private TicketService ticketService;
+	private TicketServiceImpl ticketService;
 
 	private Event publishedEvent;
 	private TicketType ticketType;

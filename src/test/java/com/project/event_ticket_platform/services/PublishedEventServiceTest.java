@@ -8,6 +8,7 @@ import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
 import com.project.event_ticket_platform.mappers.PublishedEventMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
+import com.project.event_ticket_platform.services.impl.PublishedEventServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -35,7 +40,7 @@ class PublishedEventServiceTest {
 	private PublishedEventMapper publishedEventMapper;
 
 	@InjectMocks
-	private PublishedEventService publishedEventService;
+	private PublishedEventServiceImpl publishedEventService;
 
 	private Event publishedEvent;
 	private PublishedEventResponse publishedEventResponse;
@@ -76,37 +81,41 @@ class PublishedEventServiceTest {
 	}
 
 	@Test
-	@DisplayName("Should return list of published events")
-	void searchPublishedEvents_Success() {
+	@DisplayName("Should return paginated list of published events")
+	void listPublishedEvents_Success() {
 		// Arrange
-		List<Event> events = List.of(publishedEvent);
-		when(eventRepository.findAllByStatus(EventStatus.PUBLISHED.name())).thenReturn(events);
+		Pageable pageable = PageRequest.of(0, 20);
+		Page<Event> eventPage = new PageImpl<>(List.of(publishedEvent), pageable, 1);
+		when(eventRepository.findAllByStatus(EventStatus.PUBLISHED, pageable)).thenReturn(eventPage);
 		when(publishedEventMapper.toResponse(publishedEvent)).thenReturn(publishedEventResponse);
 
 		// Act
-		List<PublishedEventResponse> result = publishedEventService.searchPublishedEvents();
+		Page<PublishedEventResponse> result = publishedEventService.listPublishedEvents(0, 20);
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(1, result.size());
-		assertEquals("Spring Music Festival", result.get(0).title());
-		verify(eventRepository).findAllByStatus(EventStatus.PUBLISHED.name());
+		assertEquals(1, result.getTotalElements());
+		assertEquals("Spring Music Festival", result.getContent().get(0).title());
+		verify(eventRepository).findAllByStatus(EventStatus.PUBLISHED, pageable);
 		verify(publishedEventMapper).toResponse(publishedEvent);
 	}
 
 	@Test
-	@DisplayName("Should return empty list when no published events exist")
-	void searchPublishedEvents_EmptyList() {
+	@DisplayName("Should return empty page when no published events exist")
+	void listPublishedEvents_EmptyList() {
 		// Arrange
-		when(eventRepository.findAllByStatus(EventStatus.PUBLISHED.name())).thenReturn(new ArrayList<>());
+		Pageable pageable = PageRequest.of(0, 20);
+		Page<Event> emptyPage = new PageImpl<>(new ArrayList<>(), pageable, 0);
+		when(eventRepository.findAllByStatus(EventStatus.PUBLISHED, pageable)).thenReturn(emptyPage);
 
 		// Act
-		List<PublishedEventResponse> result = publishedEventService.searchPublishedEvents();
+		Page<PublishedEventResponse> result = publishedEventService.listPublishedEvents(0, 20);
 
 		// Assert
 		assertNotNull(result);
 		assertTrue(result.isEmpty());
-		verify(eventRepository).findAllByStatus(EventStatus.PUBLISHED.name());
+		assertEquals(0, result.getTotalElements());
+		verify(eventRepository).findAllByStatus(EventStatus.PUBLISHED, pageable);
 		verify(publishedEventMapper, never()).toResponse(any());
 	}
 
