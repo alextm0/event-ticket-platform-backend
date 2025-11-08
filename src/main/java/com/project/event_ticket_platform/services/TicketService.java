@@ -8,6 +8,7 @@ import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.OrderStatus;
 import com.project.event_ticket_platform.entities.QrCode;
+import com.project.event_ticket_platform.entities.QrCodeStatusEnum;
 import com.project.event_ticket_platform.entities.Ticket;
 import com.project.event_ticket_platform.entities.TicketOrder;
 import com.project.event_ticket_platform.entities.TicketStatus;
@@ -17,8 +18,11 @@ import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
 import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
 import com.project.event_ticket_platform.exceptions.TicketNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotActiveException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotBelongsToEventException;
 import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
 import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
+import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import com.project.event_ticket_platform.mappers.QrCodeMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
@@ -75,29 +79,30 @@ public class TicketService {
 			throw new EventNotPublishedException(eventId);
 		}
 
-		// Validate ticket type exists and belongs to the event
-		TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+		// Get user
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new UserNotFoundException(userId));
+
+		// Load ticket type with pessimistic write lock to prevent race conditions
+		// This ensures atomic check-and-update of sold_count
+		TicketType ticketType = ticketTypeRepository.findByIdWithLock(ticketTypeId)
 			.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
 
 		if (!ticketType.getEvent().getId().equals(eventId)) {
-			throw new IllegalArgumentException("Ticket type does not belong to the specified event");
+			throw new TicketTypeNotBelongsToEventException(ticketTypeId, eventId);
 		}
 
 		if (!ticketType.isActive()) {
-			throw new IllegalArgumentException("Ticket type is not active");
+			throw new TicketTypeNotActiveException(ticketTypeId);
 		}
 
-		// Check ticket availability
+		// Check ticket availability with locked entity to prevent overbooking
 		int availableTickets = ticketType.getTotalQuantity() - ticketType.getSoldCount();
 		if (availableTickets < request.quantity()) {
 			throw new InsufficientTicketsException(
 				String.format("Only %d tickets available, but %d requested", availableTickets, request.quantity())
 			);
 		}
-
-		// Get user
-		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
 		// Create order
 		TicketOrder order = new TicketOrder();
@@ -115,14 +120,15 @@ public class TicketService {
 
 			// Create QR code
 			QrCode qrCode = new QrCode();
+			qrCode.setStatus(QrCodeStatusEnum.ACTIVE);
 			ticket.setQrCode(qrCode);
 
 			order.addTicket(ticket);
 		}
 
-		// Update sold count
+		// Update sold count atomically (entity is locked, preventing concurrent modifications)
 		ticketType.setSoldCount(ticketType.getSoldCount() + request.quantity());
-		ticketTypeRepository.save(ticketType); // Explicitly save to persist sold_count update
+		ticketTypeRepository.save(ticketType);
 
 		// Save order (cascades to tickets and QR codes)
 		TicketOrder savedOrder = ticketOrderRepository.save(order);

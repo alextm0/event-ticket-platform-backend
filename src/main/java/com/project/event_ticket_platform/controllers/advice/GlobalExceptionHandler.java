@@ -7,8 +7,11 @@ import com.project.event_ticket_platform.exceptions.EventValidationException;
 import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import com.project.event_ticket_platform.exceptions.TicketNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotActiveException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotBelongsToEventException;
 import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
 import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
+import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -98,6 +101,14 @@ public class GlobalExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(UserNotFoundException.class)
+	public ProblemDetail handleUserNotFound(UserNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("User not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
 	@ExceptionHandler(InsufficientTicketsException.class)
 	public ProblemDetail handleInsufficientTickets(InsufficientTicketsException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
@@ -114,10 +125,18 @@ public class GlobalExceptionHandler {
 		return problem;
 	}
 
-	@ExceptionHandler(IllegalArgumentException.class)
-	public ProblemDetail handleIllegalArgument(IllegalArgumentException exception) {
+	@ExceptionHandler(TicketTypeNotBelongsToEventException.class)
+	public ProblemDetail handleTicketTypeNotBelongsToEvent(TicketTypeNotBelongsToEventException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-		problem.setTitle("Invalid argument");
+		problem.setTitle("Ticket type does not belong to event");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(TicketTypeNotActiveException.class)
+	public ProblemDetail handleTicketTypeNotActive(TicketTypeNotActiveException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Ticket type is not active");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}

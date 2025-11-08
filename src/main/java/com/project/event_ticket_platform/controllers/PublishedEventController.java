@@ -44,7 +44,8 @@ public class PublishedEventController {
 		description = "Retrieve details of a specific published event by ID",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Successfully retrieved event"),
-			@ApiResponse(responseCode = "404", description = "Event not found or not published")
+			@ApiResponse(responseCode = "404", description = "Event not found"),
+			@ApiResponse(responseCode = "400", description = "Event not published or invalid request")
 		}
 	)
 	@GetMapping("/published-event/{published_event_id}")
