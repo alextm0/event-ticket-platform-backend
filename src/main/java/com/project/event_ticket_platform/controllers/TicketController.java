@@ -44,17 +44,17 @@ public class TicketController {
 			@ApiResponse(responseCode = "500", description = "QR code generation failed")
 		}
 	)
-	@PostMapping("/published-event/{published_event_id}/ticket-types/{ticket_type_id}")
+	@PostMapping("/published-event/{published_event_id}/ticket-types/{ticket_types_id}")
 	public ResponseEntity<PurchaseTicketResponse> purchaseTickets(
 		@Parameter(description = "Published event ID", required = true)
 		@PathVariable("published_event_id") UUID publishedEventId,
 		@Parameter(description = "Ticket type ID", required = true)
-		@PathVariable("ticket_type_id") UUID ticketTypeId,
+		@PathVariable("ticket_types_id") UUID ticketTypeId,
 		@Parameter(description = "User ID", required = true)
 		@RequestHeader("X-User-Id") UUID userId,
 		@Valid @RequestBody PurchaseTicketRequest request
 	) {
-		PurchaseTicketResponse response = ticketService.purchaseTickets(publishedEventId, ticketTypeId, userId, request);
+		PurchaseTicketResponse response = ticketService.purchaseTicket(publishedEventId, ticketTypeId, request, userId);
 		return ResponseEntity
 			.created(URI.create("/api/v1/tickets/" + response.orderId()))
 			.body(response);
@@ -105,7 +105,7 @@ public class TicketController {
 			@ApiResponse(responseCode = "404", description = "Ticket not found")
 		}
 	)
-	@GetMapping("/tickets/{ticket_id}/qr-code")
+	@GetMapping("/tickets/{ticket_id}/qr-codes")
 	public ResponseEntity<QrCodeResponse> getTicketQrCode(
 		@Parameter(description = "Ticket ID", required = true)
 		@PathVariable("ticket_id") UUID ticketId,

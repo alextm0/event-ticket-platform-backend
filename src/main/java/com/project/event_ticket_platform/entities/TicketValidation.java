@@ -36,7 +36,7 @@ public class TicketValidation {
 	private UUID id;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
+	@Column(name = "status", nullable = false, columnDefinition = "ticket_validation_status")
 	private TicketValidationEnum status;
 
 	@CreatedDate

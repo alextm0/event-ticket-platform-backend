@@ -14,7 +14,7 @@ import java.util.List;
 )
 public interface TicketTypeMapper {
 
-	@Mapping(source = "active", target = "isActive")
+	@Mapping(source = "active", target = "active")
 	@Mapping(expression = "java(ticketType.getTotalQuantity() - ticketType.getSoldCount())", target = "availableQuantity")
 	TicketTypeResponse toResponse(TicketType ticketType);
 

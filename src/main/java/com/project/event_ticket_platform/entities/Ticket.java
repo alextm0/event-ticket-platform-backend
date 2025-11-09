@@ -29,6 +29,14 @@ import java.util.UUID;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tickets")
+@org.hibernate.annotations.SQLInsert(
+	sql = "INSERT INTO tickets (checked_in_at, created_at, order_id, qr_code_id, status, ticket_type_id, updated_at, id) " +
+		  "VALUES (?, ?, ?, ?, CAST(? AS ticket_status), ?, ?, ?)"
+)
+@org.hibernate.annotations.SQLUpdate(
+	sql = "UPDATE tickets SET checked_in_at = ?, order_id = ?, qr_code_id = ?, " +
+		  "status = CAST(? AS ticket_status), ticket_type_id = ?, updated_at = ? WHERE id = ?"
+)
 @EntityListeners(AuditingEntityListener.class)
 public class Ticket {
 
@@ -45,7 +53,7 @@ public class Ticket {
 	private TicketType ticketType;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
+	@Column(name = "status", nullable = false, columnDefinition = "ticket_status")
 	private TicketStatus status = TicketStatus.PURCHASED;
 
 	@OneToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.ALL, orphanRemoval = true)

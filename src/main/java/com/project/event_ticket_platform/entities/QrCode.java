@@ -24,6 +24,13 @@ import java.util.UUID;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "qr_codes")
+@org.hibernate.annotations.SQLInsert(
+	sql = "INSERT INTO qr_codes (code_data, generated_date_time, status, updated_at, id) " +
+		  "VALUES (?, ?, CAST(? AS qr_code_status), ?, ?)"
+)
+@org.hibernate.annotations.SQLUpdate(
+	sql = "UPDATE qr_codes SET code_data = ?, status = CAST(? AS qr_code_status), updated_at = ? WHERE id = ?"
+)
 @EntityListeners(AuditingEntityListener.class)
 public class QrCode {
 
@@ -39,7 +46,7 @@ public class QrCode {
 	private Instant generatedDateTime;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
+	@Column(name = "status", nullable = false, columnDefinition = "qr_code_status")
 	private QrCodeStatusEnum status = QrCodeStatusEnum.ACTIVE;
 
 	@LastModifiedDate

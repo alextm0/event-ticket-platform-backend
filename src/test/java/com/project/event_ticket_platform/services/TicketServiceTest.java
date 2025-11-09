@@ -47,10 +47,16 @@ class TicketServiceTest {
 	private UserRepository userRepository;
 
 	@Mock
+	private QrCodeRepository qrCodeRepository;
+
+	@Mock
 	private TicketMapper ticketMapper;
 
 	@Mock
 	private QrCodeMapper qrCodeMapper;
+
+	@Mock
+	private QrCodeService qrCodeService;
 
 	@InjectMocks
 	private TicketServiceImpl ticketService;
@@ -104,9 +110,63 @@ class TicketServiceTest {
 		savedOrder.setUser(user);
 		savedOrder.setTotalAmount(BigDecimal.valueOf(300.00));
 		savedOrder.setStatus(OrderStatus.PAID);
-		savedOrder.setTickets(new ArrayList<>());
 
 		when(ticketOrderRepository.save(any(TicketOrder.class))).thenReturn(savedOrder);
+		
+		// Mock QR code repository - placeholder QR codes
+		when(qrCodeRepository.save(any(QrCode.class))).thenAnswer(invocation -> {
+			QrCode qrCode = invocation.getArgument(0);
+			if (qrCode.getId() == null) {
+				qrCode.setId(UUID.randomUUID());
+			}
+			return qrCode;
+		});
+		
+		// Mock ticket repository - save tickets
+		List<Ticket> savedTickets = new ArrayList<>();
+		when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> {
+			Ticket ticket = invocation.getArgument(0);
+			if (ticket.getId() == null) {
+				ticket.setId(UUID.randomUUID());
+			}
+			savedTickets.add(ticket);
+			return ticket;
+		});
+		
+		// Mock QR code generation (for real QR codes after tickets are saved)
+		when(qrCodeService.generateQrCode(any(Ticket.class))).thenAnswer(invocation -> {
+			Ticket ticket = invocation.getArgument(0);
+			QrCode qrCode = new QrCode();
+			qrCode.setId(UUID.randomUUID());
+			qrCode.setCodeData("base64encodedqrcode");
+			qrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
+			return qrCode;
+		});
+		
+		// Mock fetching tickets with relationships
+		when(ticketRepository.findByOrderIdWithRelations(savedOrder.getId())).thenAnswer(invocation -> {
+			// Return tickets with all relationships loaded
+			List<Ticket> ticketsWithRelations = new ArrayList<>();
+			for (Ticket ticket : savedTickets) {
+				Ticket ticketWithRelations = new Ticket();
+				ticketWithRelations.setId(ticket.getId());
+				ticketWithRelations.setTicketType(ticketType);
+				ticketWithRelations.setOrder(savedOrder);
+				ticketWithRelations.setStatus(TicketStatus.PURCHASED);
+				ticketWithRelations.setQrCode(ticket.getQrCode());
+				ticketsWithRelations.add(ticketWithRelations);
+			}
+			return ticketsWithRelations;
+		});
+		
+		// Mock ticket mapper
+		when(ticketMapper.toResponse(any(Ticket.class))).thenAnswer(invocation -> {
+			Ticket ticket = invocation.getArgument(0);
+			return new TicketResponse(
+				ticket.getId(), TicketStatus.PURCHASED, "Event", "Location",
+				Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now()
+			);
+		});
 
 		// Act
 		PurchaseTicketResponse response = ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
@@ -114,10 +174,15 @@ class TicketServiceTest {
 		// Assert
 		assertNotNull(response);
 		assertEquals(OrderStatus.PAID, response.orderStatus());
+		assertEquals(2, response.tickets().size());
 		verify(eventRepository).findById(eventId);
 		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 		verify(ticketOrderRepository).save(any(TicketOrder.class));
+		verify(qrCodeRepository, atLeast(2)).save(any(QrCode.class)); // At least 2 placeholder + 2 updates
+		verify(ticketRepository, times(2)).save(any(Ticket.class));
+		verify(qrCodeService, times(2)).generateQrCode(any(Ticket.class));
+		verify(ticketRepository).findByOrderIdWithRelations(savedOrder.getId());
 	}
 
 	@Test
@@ -128,9 +193,9 @@ class TicketServiceTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
 		// Act & Assert
-		assertThrows(EventNotFoundException.class, () -> {
-			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
-		});
+		assertThrows(EventNotFoundException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
 		verify(eventRepository).findById(eventId);
 		verify(userRepository, never()).findById(any());
 		verify(ticketTypeRepository, never()).findByIdWithLock(any());
@@ -145,11 +210,28 @@ class TicketServiceTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
 
 		// Act & Assert
-		assertThrows(EventNotPublishedException.class, () -> {
-			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
-		});
+		assertThrows(EventNotPublishedException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
 		verify(eventRepository).findById(eventId);
 		verify(userRepository, never()).findById(any());
+		verify(ticketTypeRepository, never()).findByIdWithLock(any());
+	}
+
+	@Test
+	@DisplayName("Should throw UserNotFoundException when user does not exist")
+	void purchaseTicket_UserNotFound() {
+		// Arrange
+		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+		// Act & Assert
+		assertThrows(UserNotFoundException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
+		verify(eventRepository).findById(eventId);
+		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository, never()).findByIdWithLock(any());
 	}
 
@@ -163,9 +245,9 @@ class TicketServiceTest {
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.empty());
 
 		// Act & Assert
-		assertThrows(TicketTypeNotFoundException.class, () -> {
-			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
-		});
+		assertThrows(TicketTypeNotFoundException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
 		verify(eventRepository).findById(eventId);
 		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
@@ -185,9 +267,9 @@ class TicketServiceTest {
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		// Act & Assert
-		assertThrows(TicketTypeNotBelongsToEventException.class, () -> {
-			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
-		});
+		assertThrows(TicketTypeNotBelongsToEventException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
 		verify(eventRepository).findById(eventId);
 		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
@@ -204,9 +286,9 @@ class TicketServiceTest {
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		// Act & Assert
-		assertThrows(TicketTypeNotActiveException.class, () -> {
-			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
-		});
+		assertThrows(TicketTypeNotActiveException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
 		verify(eventRepository).findById(eventId);
 		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
@@ -223,13 +305,59 @@ class TicketServiceTest {
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		// Act & Assert
-		assertThrows(InsufficientTicketsException.class, () -> {
-			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
-		});
+		assertThrows(InsufficientTicketsException.class, () ->
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId)
+		);
 		verify(eventRepository).findById(eventId);
 		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 		verify(ticketOrderRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("Should throw QrCodeGenerationException when QR code generation fails")
+	void purchaseTicket_QrCodeGenerationFailure() {
+		// Arrange
+		PurchaseTicketRequest request = new PurchaseTicketRequest(1);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
+
+		TicketOrder savedOrder = new TicketOrder();
+		savedOrder.setId(UUID.randomUUID());
+		savedOrder.setUser(user);
+		
+		when(ticketOrderRepository.save(any(TicketOrder.class))).thenReturn(savedOrder);
+		
+		// Mock QR code repository for placeholder
+		when(qrCodeRepository.save(any(QrCode.class))).thenAnswer(invocation -> {
+			QrCode qrCode = invocation.getArgument(0);
+			if (qrCode.getId() == null) {
+				qrCode.setId(UUID.randomUUID());
+			}
+			return qrCode;
+		});
+		
+		// Mock ticket repository
+		Ticket savedTicket = new Ticket();
+		savedTicket.setId(UUID.randomUUID());
+		savedTicket.setTicketType(ticketType);
+		savedTicket.setOrder(savedOrder);
+		QrCode placeholderQrCode = new QrCode();
+		placeholderQrCode.setId(UUID.randomUUID());
+		savedTicket.setQrCode(placeholderQrCode);
+		
+		when(ticketRepository.save(any(Ticket.class))).thenReturn(savedTicket);
+
+		// Mock QR code generation to fail
+		when(qrCodeService.generateQrCode(any(Ticket.class)))
+			.thenThrow(new QrCodeGenerationException("Failed to generate QR code"));
+
+		// Act & Assert
+		assertThrows(QrCodeGenerationException.class, () -> {
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
+		});
+		verify(qrCodeService).generateQrCode(any(Ticket.class));
 	}
 
 	@Test
@@ -247,16 +375,61 @@ class TicketServiceTest {
 		savedOrder.setUser(user);
 		savedOrder.setTotalAmount(BigDecimal.valueOf(300.00));
 		savedOrder.setStatus(OrderStatus.PAID);
-		savedOrder.setTickets(new ArrayList<>());
 
 		when(ticketOrderRepository.save(any(TicketOrder.class))).thenReturn(savedOrder);
+		
+		// Mock QR code repository
+		when(qrCodeRepository.save(any(QrCode.class))).thenAnswer(invocation -> {
+			QrCode qrCode = invocation.getArgument(0);
+			if (qrCode.getId() == null) {
+				qrCode.setId(UUID.randomUUID());
+			}
+			return qrCode;
+		});
+		
+		// Mock ticket repository
+		List<Ticket> savedTickets = new ArrayList<>();
+		when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> {
+			Ticket ticket = invocation.getArgument(0);
+			if (ticket.getId() == null) {
+				ticket.setId(UUID.randomUUID());
+			}
+			savedTickets.add(ticket);
+			return ticket;
+		});
+		
+		// Mock QR code generation
+		when(qrCodeService.generateQrCode(any(Ticket.class))).thenAnswer(invocation -> {
+			Ticket ticket = invocation.getArgument(0);
+			QrCode qrCode = new QrCode();
+			qrCode.setId(UUID.randomUUID());
+			qrCode.setCodeData("base64encodedqrcode");
+			qrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
+			return qrCode;
+		});
+		
+		// Mock fetching tickets with relationships
+		when(ticketRepository.findByOrderIdWithRelations(savedOrder.getId())).thenAnswer(invocation -> {
+			return savedTickets;
+		});
+		
+		// Mock ticket mapper
+		when(ticketMapper.toResponse(any(Ticket.class))).thenAnswer(invocation -> {
+			Ticket ticket = invocation.getArgument(0);
+			return new TicketResponse(
+				ticket.getId(), TicketStatus.PURCHASED, "Event", "Location",
+				Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now()
+			);
+		});
 
 		// Act
 		ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 
 		// Assert
 		assertEquals(initialSoldCount + 2, ticketType.getSoldCount());
+		verify(ticketTypeRepository).save(ticketType);
 		verify(ticketOrderRepository).save(any(TicketOrder.class));
+		verify(qrCodeService, times(2)).generateQrCode(any(Ticket.class));
 	}
 
 	@Test
@@ -322,9 +495,9 @@ class TicketServiceTest {
 		when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
 
 		// Act & Assert
-		assertThrows(TicketNotFoundException.class, () -> {
-			ticketService.getTicketById(ticketId, userId);
-		});
+		assertThrows(TicketNotFoundException.class, () ->
+			ticketService.getTicketById(ticketId, userId)
+		);
 		verify(ticketRepository).findById(ticketId);
 		verify(ticketMapper, never()).toResponse(any());
 	}
@@ -345,9 +518,9 @@ class TicketServiceTest {
 		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
 
 		// Act & Assert
-		assertThrows(UnauthorizedAccessException.class, () -> {
-			ticketService.getTicketById(ticketId, userId);
-		});
+		assertThrows(UnauthorizedAccessException.class, () ->
+			ticketService.getTicketById(ticketId, userId)
+		);
 		verify(ticketRepository).findById(ticketId);
 		verify(ticketMapper, never()).toResponse(any());
 	}
@@ -371,10 +544,13 @@ class TicketServiceTest {
 		ticket.setOrder(order);
 
 		QrCodeResponse qrCodeResponse = new QrCodeResponse(
-			qrCodeId, "https://api.event-platform.com/qr/" + qrCodeId, QrCodeStatusEnum.ACTIVE
+			qrCodeId,
+			"https://api.event-platform.com/qr/" + qrCodeId,
+			QrCodeStatusEnum.ACTIVE,
+			Instant.now()
 		);
 
-		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findByIdWithQrCode(ticketId)).thenReturn(Optional.of(ticket));
 		when(qrCodeMapper.toResponse(qrCode)).thenReturn(qrCodeResponse);
 
 		// Act
@@ -383,7 +559,7 @@ class TicketServiceTest {
 		// Assert
 		assertNotNull(result);
 		assertEquals(qrCodeId, result.id());
-		verify(ticketRepository).findById(ticketId);
+		verify(ticketRepository).findByIdWithQrCode(ticketId);
 		verify(qrCodeMapper).toResponse(qrCode);
 	}
 
@@ -403,13 +579,28 @@ class TicketServiceTest {
 		order.setUser(differentUser);
 		ticket.setOrder(order);
 
-		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findByIdWithQrCode(ticketId)).thenReturn(Optional.of(ticket));
 
 		// Act & Assert
-		assertThrows(UnauthorizedAccessException.class, () -> {
-			ticketService.getTicketQrCode(ticketId, userId);
-		});
-		verify(ticketRepository).findById(ticketId);
+		assertThrows(UnauthorizedAccessException.class, () ->
+			ticketService.getTicketQrCode(ticketId, userId)
+		);
+		verify(ticketRepository).findByIdWithQrCode(ticketId);
+		verify(qrCodeMapper, never()).toResponse(any());
+	}
+
+	@Test
+	@DisplayName("Should throw TicketNotFoundException when ticket does not exist for QR code retrieval")
+	void getTicketQrCode_TicketNotFound() {
+		// Arrange
+		UUID ticketId = UUID.randomUUID();
+		when(ticketRepository.findByIdWithQrCode(ticketId)).thenReturn(Optional.empty());
+
+		// Act & Assert
+		assertThrows(TicketNotFoundException.class, () ->
+			ticketService.getTicketQrCode(ticketId, userId)
+		);
+		verify(ticketRepository).findByIdWithQrCode(ticketId);
 		verify(qrCodeMapper, never()).toResponse(any());
 	}
 }

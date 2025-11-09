@@ -16,5 +16,20 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "JOIN FETCH t.order o " +
 		   "WHERE o.user.id = :userId")
 	List<Ticket> findAllByUserId(@Param("userId") UUID userId);
+
+	@Query("SELECT t FROM Ticket t " +
+		   "JOIN FETCH t.ticketType tt " +
+		   "JOIN FETCH tt.event e " +
+		   "JOIN FETCH t.qrCode qr " +
+		   "JOIN FETCH t.order o " +
+		   "WHERE t.order.id = :orderId")
+	List<Ticket> findByOrderIdWithRelations(@Param("orderId") UUID orderId);
+
+	@Query("SELECT t FROM Ticket t " +
+		   "JOIN FETCH t.qrCode qr " +
+		   "JOIN FETCH t.order o " +
+		   "JOIN FETCH o.user u " +
+		   "WHERE t.id = :ticketId")
+	java.util.Optional<Ticket> findByIdWithQrCode(@Param("ticketId") UUID ticketId);
 }
 
