@@ -13,6 +13,7 @@ import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
 import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
 import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import com.project.event_ticket_platform.exceptions.QrCodeGenerationException;
+import com.project.event_ticket_platform.exceptions.QrCodeNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -106,6 +107,14 @@ public class GlobalExceptionHandler {
 	public ProblemDetail handleInsufficientTickets(InsufficientTicketsException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
 		problem.setTitle("Insufficient tickets available");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(QrCodeNotFoundException.class)
+	public ProblemDetail handleQrCodeNotFound(QrCodeNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("QR code not found");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}

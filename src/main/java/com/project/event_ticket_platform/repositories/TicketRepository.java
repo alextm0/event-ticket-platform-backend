@@ -2,6 +2,8 @@ package com.project.event_ticket_platform.repositories;
 
 import com.project.event_ticket_platform.entities.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,5 +33,13 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "JOIN FETCH o.user u " +
 		   "WHERE t.id = :ticketId")
 	java.util.Optional<Ticket> findByIdWithQrCode(@Param("ticketId") UUID ticketId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT t FROM Ticket t " +
+		   "JOIN FETCH t.ticketType tt " +
+		   "JOIN FETCH tt.event e " +
+		   "JOIN FETCH t.qrCode qr " +
+		   "WHERE qr.id = :qrCodeId")
+	java.util.Optional<Ticket> findByQrCodeIdWithEventForUpdate(@Param("qrCodeId") UUID qrCodeId);
 }
 
