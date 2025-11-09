@@ -9,6 +9,7 @@ import com.project.event_ticket_platform.exceptions.*;
 import com.project.event_ticket_platform.mappers.QrCodeMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.repositories.*;
+import com.project.event_ticket_platform.services.impl.TicketServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,11 +52,8 @@ class TicketServiceTest {
 	@Mock
 	private QrCodeMapper qrCodeMapper;
 
-	@Mock
-	private QrCodeService qrCodeService;
-
 	@InjectMocks
-	private TicketService ticketService;
+	private TicketServiceImpl ticketService;
 
 	private Event publishedEvent;
 	private TicketType ticketType;
@@ -97,8 +95,8 @@ class TicketServiceTest {
 	void purchaseTicket_Success() {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		TicketOrder savedOrder = new TicketOrder();
@@ -109,17 +107,15 @@ class TicketServiceTest {
 		savedOrder.setTickets(new ArrayList<>());
 
 		when(ticketOrderRepository.save(any(TicketOrder.class))).thenReturn(savedOrder);
-		when(qrCodeService.generateQrCode(any(Ticket.class))).thenReturn(new QrCode());
-		when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		// Act
-		PurchaseTicketResponse response = ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+		PurchaseTicketResponse response = ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 
 		// Assert
 		assertNotNull(response);
 		assertEquals(OrderStatus.PAID, response.orderStatus());
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 		verify(ticketOrderRepository).save(any(TicketOrder.class));
 	}
@@ -129,15 +125,14 @@ class TicketServiceTest {
 	void purchaseTicket_EventNotFound() {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
 		// Act & Assert
 		assertThrows(EventNotFoundException.class, () -> {
-			ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 		});
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository, never()).findById(any());
 		verify(ticketTypeRepository, never()).findByIdWithLock(any());
 	}
 
@@ -147,15 +142,14 @@ class TicketServiceTest {
 		// Arrange
 		publishedEvent.setStatus(EventStatus.DRAFT);
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
 
 		// Act & Assert
 		assertThrows(EventNotPublishedException.class, () -> {
-			ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 		});
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository, never()).findById(any());
 		verify(ticketTypeRepository, never()).findByIdWithLock(any());
 	}
 
@@ -164,16 +158,16 @@ class TicketServiceTest {
 	void purchaseTicket_TicketTypeNotFound() {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.empty());
 
 		// Act & Assert
 		assertThrows(TicketTypeNotFoundException.class, () -> {
-			ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 		});
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 	}
 
@@ -186,16 +180,16 @@ class TicketServiceTest {
 		ticketType.setEvent(differentEvent);
 
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		// Act & Assert
 		assertThrows(TicketTypeNotBelongsToEventException.class, () -> {
-			ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 		});
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 	}
 
@@ -205,16 +199,16 @@ class TicketServiceTest {
 		// Arrange
 		ticketType.setActive(false);
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		// Act & Assert
 		assertThrows(TicketTypeNotActiveException.class, () -> {
-			ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 		});
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 	}
 
@@ -224,16 +218,16 @@ class TicketServiceTest {
 		// Arrange
 		ticketType.setSoldCount(99); // Only 1 ticket left
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		// Act & Assert
 		assertThrows(InsufficientTicketsException.class, () -> {
-			ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+			ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 		});
-		verify(userRepository).findById(userId);
 		verify(eventRepository).findById(eventId);
+		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 		verify(ticketOrderRepository, never()).save(any());
 	}
@@ -244,8 +238,8 @@ class TicketServiceTest {
 		// Arrange
 		int initialSoldCount = ticketType.getSoldCount();
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
-		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(ticketTypeRepository.findByIdWithLock(ticketTypeId)).thenReturn(Optional.of(ticketType));
 
 		TicketOrder savedOrder = new TicketOrder();
@@ -256,16 +250,13 @@ class TicketServiceTest {
 		savedOrder.setTickets(new ArrayList<>());
 
 		when(ticketOrderRepository.save(any(TicketOrder.class))).thenReturn(savedOrder);
-		when(qrCodeService.generateQrCode(any(Ticket.class))).thenReturn(new QrCode());
-		when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		// Act
-		ticketService.purchaseTickets(eventId, ticketTypeId, userId, request);
+		ticketService.purchaseTicket(eventId, ticketTypeId, request, userId);
 
 		// Assert
 		assertEquals(initialSoldCount + 2, ticketType.getSoldCount());
 		verify(ticketOrderRepository).save(any(TicketOrder.class));
-		verify(ticketTypeRepository).save(ticketType);
 	}
 
 	@Test
@@ -310,7 +301,7 @@ class TicketServiceTest {
 			Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now()
 		);
 
-		when(ticketRepository.findByIdWithRelations(ticketId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
 		when(ticketMapper.toResponse(ticket)).thenReturn(ticketResponse);
 
 		// Act
@@ -319,7 +310,7 @@ class TicketServiceTest {
 		// Assert
 		assertNotNull(result);
 		assertEquals(ticketId, result.id());
-		verify(ticketRepository).findByIdWithRelations(ticketId);
+		verify(ticketRepository).findById(ticketId);
 		verify(ticketMapper).toResponse(ticket);
 	}
 
@@ -328,13 +319,13 @@ class TicketServiceTest {
 	void getTicketById_TicketNotFound() {
 		// Arrange
 		UUID ticketId = UUID.randomUUID();
-		when(ticketRepository.findByIdWithRelations(ticketId)).thenReturn(Optional.empty());
+		when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
 
 		// Act & Assert
 		assertThrows(TicketNotFoundException.class, () -> {
 			ticketService.getTicketById(ticketId, userId);
 		});
-		verify(ticketRepository).findByIdWithRelations(ticketId);
+		verify(ticketRepository).findById(ticketId);
 		verify(ticketMapper, never()).toResponse(any());
 	}
 
@@ -351,13 +342,13 @@ class TicketServiceTest {
 		order.setUser(differentUser);
 		ticket.setOrder(order);
 
-		when(ticketRepository.findByIdWithRelations(ticketId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
 
 		// Act & Assert
 		assertThrows(UnauthorizedAccessException.class, () -> {
 			ticketService.getTicketById(ticketId, userId);
 		});
-		verify(ticketRepository).findByIdWithRelations(ticketId);
+		verify(ticketRepository).findById(ticketId);
 		verify(ticketMapper, never()).toResponse(any());
 	}
 
@@ -380,13 +371,10 @@ class TicketServiceTest {
 		ticket.setOrder(order);
 
 		QrCodeResponse qrCodeResponse = new QrCodeResponse(
-			qrCodeId,
-			"https://api.event-platform.com/qr/" + qrCodeId,
-			QrCodeStatusEnum.ACTIVE,
-			Instant.now()
+			qrCodeId, "https://api.event-platform.com/qr/" + qrCodeId, QrCodeStatusEnum.ACTIVE
 		);
 
-		when(ticketRepository.findByIdWithRelations(ticketId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
 		when(qrCodeMapper.toResponse(qrCode)).thenReturn(qrCodeResponse);
 
 		// Act
@@ -395,7 +383,7 @@ class TicketServiceTest {
 		// Assert
 		assertNotNull(result);
 		assertEquals(qrCodeId, result.id());
-		verify(ticketRepository).findByIdWithRelations(ticketId);
+		verify(ticketRepository).findById(ticketId);
 		verify(qrCodeMapper).toResponse(qrCode);
 	}
 
@@ -415,13 +403,13 @@ class TicketServiceTest {
 		order.setUser(differentUser);
 		ticket.setOrder(order);
 
-		when(ticketRepository.findByIdWithRelations(ticketId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
 
 		// Act & Assert
 		assertThrows(UnauthorizedAccessException.class, () -> {
 			ticketService.getTicketQrCode(ticketId, userId);
 		});
-		verify(ticketRepository).findByIdWithRelations(ticketId);
+		verify(ticketRepository).findById(ticketId);
 		verify(qrCodeMapper, never()).toResponse(any());
 	}
 }

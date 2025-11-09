@@ -13,23 +13,23 @@ public record TicketTypeResponse(
 	@Schema(description = "Ticket type name", example = "VIP")
 	String name,
 
-	@Schema(description = "Ticket type description")
+	@Schema(description = "Ticket type description", example = "VIP access with backstage pass")
 	String description,
 
 	@Schema(description = "Ticket price", example = "150.00")
 	BigDecimal price,
 
-	@Schema(description = "Total quantity available")
+	@Schema(description = "Total quantity", example = "100")
 	Integer totalQuantity,
 
-	@Schema(description = "Number of tickets sold")
+	@Schema(description = "Sold count", example = "45")
 	Integer soldCount,
 
-	@Schema(description = "Available tickets")
+	@Schema(description = "Available quantity", example = "55")
 	Integer availableQuantity,
 
-	@Schema(description = "Whether the ticket type is active")
-	Boolean isActive
+	@Schema(description = "Is active", example = "true")
+	boolean active
 ) {
 }
 

@@ -12,6 +12,9 @@ import java.util.UUID;
 
 public interface TicketTypeRepository extends JpaRepository<TicketType, UUID> {
 
+	@Query("SELECT tt FROM TicketType tt JOIN FETCH tt.event WHERE tt.id = :id")
+	Optional<TicketType> findByIdWithEvent(@Param("id") UUID id);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT tt FROM TicketType tt JOIN FETCH tt.event WHERE tt.id = :id")
 	Optional<TicketType> findByIdWithLock(@Param("id") UUID id);
