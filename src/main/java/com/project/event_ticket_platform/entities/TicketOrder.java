@@ -33,6 +33,14 @@ import java.util.UUID;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "orders")
+@org.hibernate.annotations.SQLInsert(
+	sql = "INSERT INTO orders (buyer_email, buyer_name, created_at, status, total_amount, updated_at, user_id, id) " +
+		  "VALUES (?, ?, ?, CAST(? AS order_status), ?, ?, ?, ?)"
+)
+@org.hibernate.annotations.SQLUpdate(
+	sql = "UPDATE orders SET buyer_email = ?, buyer_name = ?, status = CAST(? AS order_status), " +
+		  "total_amount = ?, updated_at = ?, user_id = ? WHERE id = ?"
+)
 @EntityListeners(AuditingEntityListener.class)
 public class TicketOrder {
 
@@ -47,7 +55,7 @@ public class TicketOrder {
 	@Column(name = "buyer_name")
 	private String buyerName;
 
-	@Email
+	@Email(message = "Buyer email must be a valid email address")
 	@Column(name = "buyer_email")
 	private String buyerEmail;
 
@@ -55,7 +63,7 @@ public class TicketOrder {
 	private BigDecimal totalAmount;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
+	@Column(name = "status", nullable = false, columnDefinition = "order_status")
 	private OrderStatus status = OrderStatus.PENDING;
 
 	@CreatedDate

@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,41 +34,39 @@ public class TicketController {
 	}
 
 	@Operation(
-		summary = "Purchase ticket",
-		description = "Purchase one or more tickets for a specific ticket type of a published event",
+		summary = "Purchase tickets",
+		description = "Purchase tickets for a published event. Returns order with generated QR codes.",
 		responses = {
-			@ApiResponse(responseCode = "201", description = "Tickets successfully purchased"),
-			@ApiResponse(responseCode = "400", description = "Invalid request or insufficient tickets"),
-			@ApiResponse(responseCode = "404", description = "Event or ticket type not found")
+			@ApiResponse(responseCode = "201", description = "Tickets purchased successfully"),
+			@ApiResponse(responseCode = "400", description = "Insufficient tickets available or event not published"),
+			@ApiResponse(responseCode = "404", description = "Event or ticket type not found"),
+			@ApiResponse(responseCode = "500", description = "QR code generation failed")
 		}
 	)
 	@PostMapping("/published-event/{published_event_id}/ticket-types/{ticket_types_id}")
-	public ResponseEntity<PurchaseTicketResponse> purchaseTicket(
+	public ResponseEntity<PurchaseTicketResponse> purchaseTickets(
 		@Parameter(description = "Published event ID", required = true)
 		@PathVariable("published_event_id") UUID publishedEventId,
-
 		@Parameter(description = "Ticket type ID", required = true)
-		@PathVariable("ticket_types_id") UUID ticketTypesId,
-
-		@Valid @RequestBody PurchaseTicketRequest request,
-
-		@Parameter(description = "User ID (in production, this would come from JWT token)", required = true)
-		@RequestHeader("X-User-Id") UUID userId
+		@PathVariable("ticket_types_id") UUID ticketTypeId,
+		@Parameter(description = "User ID", required = true)
+		@RequestHeader("X-User-Id") UUID userId,
+		@Valid @RequestBody PurchaseTicketRequest request
 	) {
-		PurchaseTicketResponse response = ticketService.purchaseTicket(publishedEventId, ticketTypesId, request, userId);
-		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+		PurchaseTicketResponse response = ticketService.purchaseTicket(publishedEventId, ticketTypeId, request, userId);
+		return ResponseEntity.status(201).body(response);
 	}
 
 	@Operation(
 		summary = "List user tickets",
-		description = "Retrieve all tickets owned by the authenticated user",
+		description = "Retrieve all tickets for the authenticated user",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Successfully retrieved tickets")
 		}
 	)
 	@GetMapping("/tickets")
 	public ResponseEntity<List<TicketResponse>> listUserTickets(
-		@Parameter(description = "User ID (in production, this would come from JWT token)", required = true)
+		@Parameter(description = "User ID", required = true)
 		@RequestHeader("X-User-Id") UUID userId
 	) {
 		List<TicketResponse> tickets = ticketService.listUserTickets(userId);
@@ -77,8 +74,8 @@ public class TicketController {
 	}
 
 	@Operation(
-		summary = "Retrieve ticket",
-		description = "Retrieve details of a specific ticket owned by the authenticated user",
+		summary = "Get ticket by ID",
+		description = "Retrieve a specific ticket by ID for the authenticated user",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Successfully retrieved ticket"),
 			@ApiResponse(responseCode = "403", description = "Unauthorized access to ticket"),
@@ -86,11 +83,10 @@ public class TicketController {
 		}
 	)
 	@GetMapping("/tickets/{ticket_id}")
-	public ResponseEntity<TicketResponse> getTicket(
+	public ResponseEntity<TicketResponse> getTicketById(
 		@Parameter(description = "Ticket ID", required = true)
 		@PathVariable("ticket_id") UUID ticketId,
-
-		@Parameter(description = "User ID (in production, this would come from JWT token)", required = true)
+		@Parameter(description = "User ID", required = true)
 		@RequestHeader("X-User-Id") UUID userId
 	) {
 		TicketResponse ticket = ticketService.getTicketById(ticketId, userId);
@@ -98,8 +94,8 @@ public class TicketController {
 	}
 
 	@Operation(
-		summary = "Retrieve ticket QR code",
-		description = "Retrieve the QR code for a specific ticket owned by the authenticated user",
+		summary = "Get ticket QR code",
+		description = "Retrieve the QR code for a specific ticket",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Successfully retrieved QR code"),
 			@ApiResponse(responseCode = "403", description = "Unauthorized access to ticket"),
@@ -110,8 +106,7 @@ public class TicketController {
 	public ResponseEntity<QrCodeResponse> getTicketQrCode(
 		@Parameter(description = "Ticket ID", required = true)
 		@PathVariable("ticket_id") UUID ticketId,
-
-		@Parameter(description = "User ID (in production, this would come from JWT token)", required = true)
+		@Parameter(description = "User ID", required = true)
 		@RequestHeader("X-User-Id") UUID userId
 	) {
 		QrCodeResponse qrCode = ticketService.getTicketQrCode(ticketId, userId);

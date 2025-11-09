@@ -5,7 +5,7 @@ import java.util.UUID;
 public class EventNotPublishedException extends RuntimeException {
 
 	public EventNotPublishedException(UUID eventId) {
-		super("Event is not published with id: " + eventId);
+		super("Event not published with id: " + eventId);
 	}
 }
 

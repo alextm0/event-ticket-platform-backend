@@ -2,24 +2,22 @@ package com.project.event_ticket_platform.mappers;
 
 import com.project.event_ticket_platform.dtos.TicketTypeResponse;
 import com.project.event_ticket_platform.entities.TicketType;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
-@Component
-public class TicketTypeMapper {
+import java.util.List;
 
-	public TicketTypeResponse toResponse(TicketType ticketType) {
-		int availableQuantity = ticketType.getTotalQuantity() - ticketType.getSoldCount();
+@Mapper(
+	componentModel = "spring",
+	unmappedTargetPolicy = ReportingPolicy.IGNORE
+)
+public interface TicketTypeMapper {
 
-		return new TicketTypeResponse(
-			ticketType.getId(),
-			ticketType.getName(),
-			ticketType.getDescription(),
-			ticketType.getPrice(),
-			ticketType.getTotalQuantity(),
-			ticketType.getSoldCount(),
-			availableQuantity,
-			ticketType.isActive()
-		);
-	}
+	@Mapping(source = "active", target = "active")
+	@Mapping(expression = "java(ticketType.getTotalQuantity() - ticketType.getSoldCount())", target = "availableQuantity")
+	TicketTypeResponse toResponse(TicketType ticketType);
+
+	List<TicketTypeResponse> toResponseList(List<TicketType> ticketTypes);
 }
 

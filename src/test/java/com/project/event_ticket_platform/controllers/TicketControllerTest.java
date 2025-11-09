@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -35,7 +35,7 @@ class TicketControllerTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@MockBean
+	@MockitoBean
 	private TicketService ticketService;
 
 	private UUID eventId;
@@ -132,7 +132,7 @@ class TicketControllerTest {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(100);
 		when(ticketService.purchaseTicket(eventId, ticketTypeId, request, userId))
-			.thenThrow(new InsufficientTicketsException("Only 5 tickets available, but 100 requested"));
+			.thenThrow(new InsufficientTicketsException(ticketTypeId, 100, 5));
 
 		// Act & Assert
 		mockMvc.perform(post("/api/v1/published-event/{published_event_id}/ticket-types/{ticket_types_id}",
@@ -258,7 +258,8 @@ class TicketControllerTest {
 		QrCodeResponse qrCodeResponse = new QrCodeResponse(
 			qrCodeId,
 			"https://api.event-platform.com/qr/" + qrCodeId,
-			QrCodeStatusEnum.ACTIVE
+			QrCodeStatusEnum.ACTIVE,
+			Instant.now()
 		);
 
 		when(ticketService.getTicketQrCode(ticketId, userId)).thenReturn(qrCodeResponse);
@@ -269,7 +270,7 @@ class TicketControllerTest {
 				.header("X-User-Id", userId.toString()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.id").value(qrCodeId.toString()))
-			.andExpect(jsonPath("$.qrCodeData").value("https://api.event-platform.com/qr/" + qrCodeId))
+			.andExpect(jsonPath("$.codeData").value("https://api.event-platform.com/qr/" + qrCodeId))
 			.andExpect(jsonPath("$.status").value("ACTIVE"));
 
 		verify(ticketService).getTicketQrCode(ticketId, userId);

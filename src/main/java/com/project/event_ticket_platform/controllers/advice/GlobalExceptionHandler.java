@@ -12,6 +12,7 @@ import com.project.event_ticket_platform.exceptions.TicketTypeNotBelongsToEventE
 import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
 import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
 import com.project.event_ticket_platform.exceptions.UserNotFoundException;
+import com.project.event_ticket_platform.exceptions.QrCodeGenerationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -85,22 +86,6 @@ public class GlobalExceptionHandler {
 		return problem;
 	}
 
-	@ExceptionHandler(TicketTypeNotFoundException.class)
-	public ProblemDetail handleTicketTypeNotFound(TicketTypeNotFoundException exception) {
-		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-		problem.setTitle("Ticket type not found");
-		problem.setDetail(exception.getMessage());
-		return problem;
-	}
-
-	@ExceptionHandler(TicketNotFoundException.class)
-	public ProblemDetail handleTicketNotFound(TicketNotFoundException exception) {
-		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-		problem.setTitle("Ticket not found");
-		problem.setDetail(exception.getMessage());
-		return problem;
-	}
-
 	@ExceptionHandler(UserNotFoundException.class)
 	public ProblemDetail handleUserNotFound(UserNotFoundException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
@@ -109,10 +94,34 @@ public class GlobalExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(TicketTypeNotFoundException.class)
+	public ProblemDetail handleTicketTypeNotFound(TicketTypeNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("Ticket type not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
 	@ExceptionHandler(InsufficientTicketsException.class)
 	public ProblemDetail handleInsufficientTickets(InsufficientTicketsException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
 		problem.setTitle("Insufficient tickets available");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(QrCodeGenerationException.class)
+	public ProblemDetail handleQrCodeGenerationException(QrCodeGenerationException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+		problem.setTitle("QR Code generation failed");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(TicketNotFoundException.class)
+	public ProblemDetail handleTicketNotFound(TicketNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("Ticket not found");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}

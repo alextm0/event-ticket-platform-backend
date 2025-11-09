@@ -8,7 +8,6 @@ import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.OrderStatus;
 import com.project.event_ticket_platform.entities.QrCode;
-import com.project.event_ticket_platform.entities.QrCodeStatusEnum;
 import com.project.event_ticket_platform.entities.Ticket;
 import com.project.event_ticket_platform.entities.TicketOrder;
 import com.project.event_ticket_platform.entities.TicketStatus;
@@ -26,10 +25,12 @@ import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import com.project.event_ticket_platform.mappers.QrCodeMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
+import com.project.event_ticket_platform.repositories.QrCodeRepository;
 import com.project.event_ticket_platform.repositories.TicketOrderRepository;
 import com.project.event_ticket_platform.repositories.TicketRepository;
 import com.project.event_ticket_platform.repositories.TicketTypeRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
+import com.project.event_ticket_platform.services.QrCodeService;
 import com.project.event_ticket_platform.services.TicketService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,8 @@ public class TicketServiceImpl implements TicketService {
 	private final UserRepository userRepository;
 	private final TicketMapper ticketMapper;
 	private final QrCodeMapper qrCodeMapper;
+	private final QrCodeService qrCodeService;
+	private final QrCodeRepository qrCodeRepository;
 
 	public TicketServiceImpl(TicketRepository ticketRepository,
 						 TicketTypeRepository ticketTypeRepository,
@@ -57,7 +60,9 @@ public class TicketServiceImpl implements TicketService {
 						 TicketOrderRepository ticketOrderRepository,
 						 UserRepository userRepository,
 						 TicketMapper ticketMapper,
-						 QrCodeMapper qrCodeMapper) {
+						 QrCodeMapper qrCodeMapper,
+						 QrCodeService qrCodeService,
+						 QrCodeRepository qrCodeRepository) {
 		this.ticketRepository = ticketRepository;
 		this.ticketTypeRepository = ticketTypeRepository;
 		this.eventRepository = eventRepository;
@@ -65,6 +70,8 @@ public class TicketServiceImpl implements TicketService {
 		this.userRepository = userRepository;
 		this.ticketMapper = ticketMapper;
 		this.qrCodeMapper = qrCodeMapper;
+		this.qrCodeService = qrCodeService;
+		this.qrCodeRepository = qrCodeRepository;
 	}
 
 	@Override
@@ -104,42 +111,70 @@ public class TicketServiceImpl implements TicketService {
 		// Check ticket availability with locked entity to prevent overbooking
 		int availableTickets = ticketType.getTotalQuantity() - ticketType.getSoldCount();
 		if (availableTickets < requestedQuantity) {
-			throw new InsufficientTicketsException(
-				String.format("Only %d tickets available, but %d requested", availableTickets, requestedQuantity)
-			);
+			throw new InsufficientTicketsException(ticketTypeId, requestedQuantity, availableTickets);
 		}
 
 		// Create order
 		TicketOrder order = new TicketOrder();
 		order.setUser(user);
 		order.setBuyerName(user.getName());
-		order.setBuyerEmail(user.getEmail());
+
+		// Validate and set buyer email (trim whitespace to handle dirty data)
+		String buyerEmail = user.getEmail();
+		if (buyerEmail == null || buyerEmail.trim().isEmpty()) {
+			throw new IllegalArgumentException("User email is required for ticket purchase");
+		}
+		// Trim whitespace and tabs from email
+		buyerEmail = buyerEmail.trim();
+		order.setBuyerEmail(buyerEmail);
+
 		order.setTotalAmount(ticketType.getPrice().multiply(BigDecimal.valueOf(requestedQuantity)));
 		order.setStatus(OrderStatus.PAID);
 
-		// Create tickets with QR codes
+		// Save order first to get order ID (needed for ticket references)
+		TicketOrder savedOrder = ticketOrderRepository.save(order);
+
+		// Create tickets - we'll save them first, then generate QR codes
+		// But tickets require QR codes, so we create placeholder QR codes first
+		List<Ticket> tickets = new java.util.ArrayList<>();
+		
 		for (int i = 0; i < requestedQuantity; i++) {
+			// Create placeholder QR code first (required by foreign key)
+			QrCode placeholderQrCode = new QrCode();
+			placeholderQrCode.setCodeData("PLACEHOLDER");
+			placeholderQrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
+			// generatedDateTime will be set automatically by @CreatedDate
+			QrCode savedQrCode = qrCodeRepository.save(placeholderQrCode);
+			
+			// Create ticket with placeholder QR code
 			Ticket ticket = new Ticket();
 			ticket.setTicketType(ticketType);
 			ticket.setStatus(TicketStatus.PURCHASED);
+			ticket.setOrder(savedOrder);
+			ticket.setQrCode(savedQrCode);
+			
+			// Save ticket (JPA will generate ID)
+			Ticket savedTicket = ticketRepository.save(ticket);
+			tickets.add(savedTicket);
+		}
 
-			// Create QR code
-			QrCode qrCode = new QrCode();
-			qrCode.setStatus(QrCodeStatusEnum.ACTIVE);
-			ticket.setQrCode(qrCode);
-
-			order.addTicket(ticket);
+		// Now generate real QR codes for each ticket and update them
+		for (Ticket ticket : tickets) {
+			QrCode realQrCode = qrCodeService.generateQrCode(ticket);
+			QrCode existingQrCode = ticket.getQrCode();
+			existingQrCode.setCodeData(realQrCode.getCodeData());
+			qrCodeRepository.save(existingQrCode);
 		}
 
 		// Update sold count atomically (entity is locked, preventing concurrent modifications)
 		ticketType.setSoldCount(ticketType.getSoldCount() + requestedQuantity);
 		ticketTypeRepository.save(ticketType);
 
-		// Save order (cascades to tickets and QR codes)
-		TicketOrder savedOrder = ticketOrderRepository.save(order);
+		// Fetch tickets with all relationships for response mapping
+		List<Ticket> ticketsWithRelations = ticketRepository.findByOrderIdWithRelations(savedOrder.getId());
 
 		// Map to response
-		List<TicketResponse> ticketResponses = savedOrder.getTickets().stream()
+		List<TicketResponse> ticketResponses = ticketsWithRelations.stream()
 			.map(ticketMapper::toResponse)
 			.collect(Collectors.toList());
 
@@ -174,7 +209,8 @@ public class TicketServiceImpl implements TicketService {
 
 	@Override
 	public QrCodeResponse getTicketQrCode(UUID ticketId, UUID userId) {
-		Ticket ticket = ticketRepository.findById(ticketId)
+		// Fetch ticket with QR code relationship using JOIN FETCH to avoid N+1 query
+		Ticket ticket = ticketRepository.findByIdWithQrCode(ticketId)
 			.orElseThrow(() -> new TicketNotFoundException(ticketId));
 
 		// Verify the ticket belongs to the user
@@ -182,7 +218,13 @@ public class TicketServiceImpl implements TicketService {
 			throw new UnauthorizedAccessException("You do not have access to this ticket");
 		}
 
-		return qrCodeMapper.toResponse(ticket.getQrCode());
+		// QR code is already loaded via JOIN FETCH
+		QrCode qrCode = ticket.getQrCode();
+		if (qrCode == null) {
+			throw new IllegalStateException("QR code not found for ticket: " + ticketId);
+		}
+
+		return qrCodeMapper.toResponse(qrCode);
 	}
 }
 
