@@ -1,6 +1,8 @@
 package com.project.event_ticket_platform.repositories;
 
 import com.project.event_ticket_platform.entities.Ticket;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,5 +33,12 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "JOIN FETCH o.user u " +
 		   "WHERE t.id = :ticketId")
 	java.util.Optional<Ticket> findByIdWithQrCode(@Param("ticketId") UUID ticketId);
+
+	@Query("SELECT t FROM Ticket t " +
+		   "JOIN t.ticketType tt " +
+		   "JOIN tt.event e " +
+			"JOIN t.order o " +
+		   "WHERE e.id = :eventId")
+	Page<Ticket> findAllByEventId(@Param("eventId") UUID eventId, Pageable pageable);
 }
 

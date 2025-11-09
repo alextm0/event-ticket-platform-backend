@@ -2,6 +2,7 @@ package com.project.event_ticket_platform.controllers;
 
 import com.project.event_ticket_platform.dtos.CreateEventRequest;
 import com.project.event_ticket_platform.dtos.EventResponse;
+import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.services.EventService;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -179,5 +181,38 @@ class EventControllerTest {
 			.andExpect(status().isNoContent());
 
 		verify(eventService).deleteEvent(eventId);
+	}
+
+	@Test
+	void shouldGetTicketSalesForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		Instant purchaseDate = Instant.now();
+		EventTicketSaleResponse ticketSale = new EventTicketSaleResponse(
+				eventId,
+				UUID.randomUUID(),
+				"VIP",
+				UUID.randomUUID(),
+				"John Doe",
+				1,
+				purchaseDate
+		);
+
+		Page<EventTicketSaleResponse> page = new PageImpl<>(List.of(ticketSale), PageRequest.of(0, 10), 1);
+
+		when(eventService.getTicketSalesForEvent(any(UUID.class), any(Pageable.class))).thenReturn(page);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/tickets", eventId)
+						.param("page", "0")
+						.param("size", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].id").value(ticketSale.id().toString()))
+				.andExpect(jsonPath("$.content[0].ticketTypeName").value("VIP"))
+				.andExpect(jsonPath("$.content[0].buyerName").value("John Doe"))
+				.andExpect(jsonPath("$.content[0].quantity").value(1))
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.size").value(10))
+				.andExpect(jsonPath("$.totalElements").value(1));
+
+		verify(eventService).getTicketSalesForEvent(any(UUID.class), any(Pageable.class));
 	}
 }

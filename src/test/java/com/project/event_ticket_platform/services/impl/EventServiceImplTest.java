@@ -11,7 +11,9 @@ import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventValidationException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import com.project.event_ticket_platform.mappers.EventMapper;
+import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
+import com.project.event_ticket_platform.repositories.TicketRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,9 @@ class EventServiceImplTest {
 	@Mock
 	private UserRepository userRepository;
 
+	@Mock
+	private TicketRepository ticketRepository;
+
 	private EventServiceImpl eventService;
 
 	private User organizer;
@@ -54,7 +59,8 @@ class EventServiceImplTest {
 	@BeforeEach
 	void setup() {
 		EventMapper eventMapper = Mappers.getMapper(EventMapper.class);
-		eventService = new EventServiceImpl(eventRepository, userRepository, eventMapper);
+		TicketMapper ticketMapper = Mappers.getMapper(TicketMapper.class);
+		eventService = new EventServiceImpl(eventRepository, userRepository, ticketRepository, eventMapper, ticketMapper);
 
 		organizerId = UUID.randomUUID();
 		organizer = new User();

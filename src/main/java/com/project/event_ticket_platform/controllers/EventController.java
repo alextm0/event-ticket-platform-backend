@@ -2,6 +2,7 @@ package com.project.event_ticket_platform.controllers;
 
 import com.project.event_ticket_platform.dtos.CreateEventRequest;
 import com.project.event_ticket_platform.dtos.EventResponse;
+import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.services.EventService;
 import jakarta.validation.Valid;
@@ -55,5 +56,10 @@ public class EventController {
 	public ResponseEntity<Void> deleteEvent(@PathVariable UUID eventId) {
 		eventService.deleteEvent(eventId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@GetMapping("/{eventId}/tickets")
+	public Page<EventTicketSaleResponse> getTicketSalesForEvent(@PathVariable UUID eventId, Pageable pageable) {
+		return eventService.getTicketSalesForEvent(eventId, pageable);
 	}
 }
