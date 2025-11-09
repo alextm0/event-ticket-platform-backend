@@ -2,8 +2,16 @@ package com.project.event_ticket_platform.controllers.advice;
 
 import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
 import com.project.event_ticket_platform.exceptions.EventNotFoundException;
+import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
 import com.project.event_ticket_platform.exceptions.EventValidationException;
+import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotActiveException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotBelongsToEventException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
+import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
+import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -54,7 +62,11 @@ public class GlobalExceptionHandler {
 		Map<String, String> validationErrors = exception.getBindingResult()
 			.getFieldErrors()
 			.stream()
-			.collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage, (first, ignored) -> first));
+			.collect(Collectors.toMap(
+				FieldError::getField,
+				error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Invalid value",
+				(first, ignored) -> first
+			));
 
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
 		problem.setTitle("Validation failed");
@@ -62,6 +74,70 @@ public class GlobalExceptionHandler {
 		if (!validationErrors.isEmpty()) {
 			problem.setProperty("errors", validationErrors);
 		}
+		return problem;
+	}
+
+	@ExceptionHandler(EventNotPublishedException.class)
+	public ProblemDetail handleEventNotPublished(EventNotPublishedException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Event not published");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(TicketTypeNotFoundException.class)
+	public ProblemDetail handleTicketTypeNotFound(TicketTypeNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("Ticket type not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(TicketNotFoundException.class)
+	public ProblemDetail handleTicketNotFound(TicketNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("Ticket not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(UserNotFoundException.class)
+	public ProblemDetail handleUserNotFound(UserNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("User not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(InsufficientTicketsException.class)
+	public ProblemDetail handleInsufficientTickets(InsufficientTicketsException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Insufficient tickets available");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(UnauthorizedAccessException.class)
+	public ProblemDetail handleUnauthorizedAccess(UnauthorizedAccessException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+		problem.setTitle("Unauthorized access");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(TicketTypeNotBelongsToEventException.class)
+	public ProblemDetail handleTicketTypeNotBelongsToEvent(TicketTypeNotBelongsToEventException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Ticket type does not belong to event");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(TicketTypeNotActiveException.class)
+	public ProblemDetail handleTicketTypeNotActive(TicketTypeNotActiveException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Ticket type is not active");
+		problem.setDetail(exception.getMessage());
 		return problem;
 	}
 
