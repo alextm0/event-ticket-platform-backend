@@ -179,7 +179,7 @@ class TicketServiceTest {
 		verify(userRepository).findById(userId);
 		verify(ticketTypeRepository).findByIdWithLock(ticketTypeId);
 		verify(ticketOrderRepository).save(any(TicketOrder.class));
-		verify(qrCodeRepository, atLeast(2)).save(any(QrCode.class)); // At least 2 placeholder + 2 updates
+		verify(qrCodeRepository, times(4)).save(any(QrCode.class)); // 2 placeholders + 2 updates
 		verify(ticketRepository, times(2)).save(any(Ticket.class));
 		verify(qrCodeService, times(2)).generateQrCode(any(Ticket.class));
 		verify(ticketRepository).findByOrderIdWithRelations(savedOrder.getId());

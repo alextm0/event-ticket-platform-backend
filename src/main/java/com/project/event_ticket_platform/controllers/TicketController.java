@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -55,9 +54,7 @@ public class TicketController {
 		@Valid @RequestBody PurchaseTicketRequest request
 	) {
 		PurchaseTicketResponse response = ticketService.purchaseTicket(publishedEventId, ticketTypeId, request, userId);
-		return ResponseEntity
-			.created(URI.create("/api/v1/tickets/" + response.orderId()))
-			.body(response);
+		return ResponseEntity.status(201).body(response);
 	}
 
 	@Operation(
