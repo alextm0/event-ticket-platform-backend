@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -149,6 +150,75 @@ public class EventServiceImpl implements EventService {
 		}
 
 		return ticketTypeMapper.toResponse(ticketType);
+	}
+
+	@Override
+	public void deleteTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+				.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
+
+		if (!ticketType.getEvent().getId().equals(eventId)) {
+			throw new TicketTypeNotBelongsToEventException(ticketTypeId, eventId);
+		}
+
+		if (!ticketType.getTickets().isEmpty()) {
+			throw new TicketTypeInUseException(ticketTypeId);
+		}
+
+		ticketTypeRepository.delete(ticketType);
+	}
+
+	@Override
+	@Transactional
+	public TicketTypeResponse patchTicketTypeForEvent(UUID eventId, UUID ticketTypeId, PatchTicketTypeRequest request) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+				.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
+
+		if (!ticketType.getEvent().getId().equals(eventId)) {
+			throw new TicketTypeNotBelongsToEventException(ticketTypeId, eventId);
+		}
+
+		request.name().ifPresent(name -> {
+			if (name.isBlank()) {
+				throw new EventValidationException("Ticket type name cannot be blank.");
+			}
+			ticketType.setName(name);
+		});
+
+		request.description().ifPresent(description -> {
+			if (description.isBlank()) {
+				throw new EventValidationException("Ticket type description cannot be blank.");
+			}
+			ticketType.setDescription(description);
+		});
+
+		request.price().ifPresent(price -> {
+			if (price.compareTo(BigDecimal.ZERO) < 0) {
+				throw new EventValidationException("Ticket type price cannot be negative.");
+			}
+			ticketType.setPrice(price);
+		});
+
+		request.quantity().ifPresent(quantity -> {
+			int soldTickets = ticketType.getTickets().size();
+			if (quantity < soldTickets) {
+				throw new EventValidationException("Quantity cannot be less than the number of tickets already sold (" + soldTickets + ").");
+			}
+			ticketType.setTotalQuantity(quantity);
+		});
+
+		request.active().ifPresent(active -> {
+			ticketType.setActive(active);
+		});
+
+		TicketType savedTicketType = ticketTypeRepository.save(ticketType);
+		return ticketTypeMapper.toResponse(savedTicketType);
 	}
 
 	private void validateNewEvent(Event event) {

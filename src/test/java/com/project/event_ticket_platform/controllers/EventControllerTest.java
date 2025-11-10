@@ -1,9 +1,6 @@
 package com.project.event_ticket_platform.controllers;
 
-import com.project.event_ticket_platform.dtos.CreateEventRequest;
-import com.project.event_ticket_platform.dtos.EventResponse;
-import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
-import com.project.event_ticket_platform.dtos.TicketTypeResponse;
+import com.project.event_ticket_platform.dtos.*;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.services.EventService;
 import org.junit.jupiter.api.Test;
@@ -32,10 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -307,5 +301,52 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.availableQuantity").value(25));
 
 		verify(eventService).getTicketTypeForEvent(eventId, ticketTypeId);
+	}
+
+	@Test
+	void shouldDeleteTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+
+		mockMvc.perform(delete("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId))
+				.andExpect(status().isNoContent());
+
+		verify(eventService).deleteTicketTypeForEvent(eventId, ticketTypeId);
+	}
+
+	@Test
+	void shouldPatchTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+		TicketTypeResponse response = new TicketTypeResponse(
+				ticketTypeId,
+				"VIP Silver",
+				"VIP access with backstage pass and complimentary drinks",
+				new BigDecimal("200.00"),
+				75,
+				50,
+				25,
+				true
+		);
+
+		when(eventService.patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class)))
+				.thenReturn(response);
+
+		mockMvc.perform(patch("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+                                 {
+                                   "name": "VIP Silver",
+                                   "price": 200.00,
+                                   "quantity": 25
+                                 }
+                                 """))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketTypeId.toString()))
+				.andExpect(jsonPath("$.name").value("VIP Silver"))
+				.andExpect(jsonPath("$.price").value(200.00))
+				.andExpect(jsonPath("$.availableQuantity").value(25));
+
+		verify(eventService).patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class));
 	}
 }

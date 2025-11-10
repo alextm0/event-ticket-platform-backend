@@ -6,14 +6,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.UUID;
@@ -73,5 +66,20 @@ public class EventController {
 	@GetMapping("/{eventId}/ticket-types/{ticketTypeId}")
 	public TicketTypeResponse getTicketTypeForEvent(@PathVariable UUID eventId, @PathVariable UUID ticketTypeId) {
 		return eventService.getTicketTypeForEvent(eventId, ticketTypeId);
+	}
+
+	@DeleteMapping("/{eventId}/ticket-types/{ticketTypeId}")
+	public ResponseEntity<Void> deleteTicketTypeFromEvent(@PathVariable UUID eventId, @PathVariable UUID ticketTypeId) {
+		eventService.deleteTicketTypeForEvent(eventId, ticketTypeId);
+		return ResponseEntity.noContent().build();
+	}
+
+	@PatchMapping("/{eventId}/ticket-types/{ticketTypeId}")
+	public TicketTypeResponse patchTicketTypeForEvent(
+			@PathVariable UUID eventId,
+			@PathVariable UUID ticketTypeId,
+			@RequestBody PatchTicketTypeRequest request
+	) {
+		return eventService.patchTicketTypeForEvent(eventId, ticketTypeId, request);
 	}
 }
