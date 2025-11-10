@@ -21,6 +21,7 @@ public interface TicketMapper {
 	TicketResponse toResponse(Ticket ticket);
 
 	@Mapping(source = "id", target = "id")
+	@Mapping(source = "ticketType.event.id", target = "eventId")
 	@Mapping(source = "ticketType.id", target = "ticketTypeId")
 	@Mapping(source = "ticketType.name", target = "ticketTypeName")
 	@Mapping(source = "order.user.id", target = "buyerId")

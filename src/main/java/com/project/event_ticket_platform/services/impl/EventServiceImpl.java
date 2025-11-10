@@ -6,10 +6,9 @@ import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
+import com.project.event_ticket_platform.entities.Ticket;
 import com.project.event_ticket_platform.entities.User;
-import com.project.event_ticket_platform.exceptions.EventNotFoundException;
-import com.project.event_ticket_platform.exceptions.EventValidationException;
-import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
+import com.project.event_ticket_platform.exceptions.*;
 import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
@@ -108,6 +107,20 @@ public class EventServiceImpl implements EventService {
 		}
 		return ticketRepository.findAllByEventId(eventId, pageable)
 				.map(ticketMapper::toEventTicketSaleResponse);
+	}
+
+	@Override
+	public EventTicketSaleResponse getTicketSaleForEvent(UUID eventId, UUID ticketId) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		Ticket ticket = ticketRepository.findById(ticketId)
+				.orElseThrow(() -> new TicketNotFoundException(ticketId));
+		if (!ticket.getTicketType().getEvent().getId().equals(eventId)) {
+			throw new TicketTypeNotBelongsToEventException(ticket.getTicketType().getId(), eventId);
+		}
+
+		return ticketMapper.toEventTicketSaleResponse(ticket);
 	}
 
 	private void validateNewEvent(Event event) {

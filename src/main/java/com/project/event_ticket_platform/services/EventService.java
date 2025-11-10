@@ -20,4 +20,6 @@ public interface EventService {
 	void deleteEvent(UUID eventId);
 
 	Page<EventTicketSaleResponse> getTicketSalesForEvent(UUID eventId, Pageable pageable);
+
+    EventTicketSaleResponse getTicketSaleForEvent(UUID eventId, UUID ticketId);
 }

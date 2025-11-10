@@ -62,4 +62,9 @@ public class EventController {
 	public Page<EventTicketSaleResponse> getTicketSalesForEvent(@PathVariable UUID eventId, Pageable pageable) {
 		return eventService.getTicketSalesForEvent(eventId, pageable);
 	}
+
+	@GetMapping("/{eventId}/tickets/{ticketId}")
+	public EventTicketSaleResponse getTicketSale(@PathVariable UUID eventId, @PathVariable UUID ticketId) {
+		return eventService.getTicketSaleForEvent(eventId, ticketId);
+	}
 }

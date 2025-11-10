@@ -186,8 +186,10 @@ class EventControllerTest {
 	@Test
 	void shouldGetTicketSalesForEvent() throws Exception {
 		UUID eventId = UUID.randomUUID();
+		UUID ticketId = UUID.randomUUID();
 		Instant purchaseDate = Instant.now();
 		EventTicketSaleResponse ticketSale = new EventTicketSaleResponse(
+				ticketId,
 				eventId,
 				UUID.randomUUID(),
 				"VIP",
@@ -214,5 +216,33 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.totalElements").value(1));
 
 		verify(eventService).getTicketSalesForEvent(any(UUID.class), any(Pageable.class));
+	}
+
+	@Test
+	void shouldGetTicketSaleForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketId = UUID.randomUUID();
+		Instant purchaseDate = Instant.now();
+		EventTicketSaleResponse ticketSale = new EventTicketSaleResponse(
+				ticketId,
+				eventId,
+				UUID.randomUUID(),
+				"VIP",
+				UUID.randomUUID(),
+				"John Doe",
+				1,
+				purchaseDate
+		);
+
+		when(eventService.getTicketSaleForEvent(eventId, ticketId)).thenReturn(ticketSale);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/tickets/{ticketId}", eventId, ticketId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketSale.id().toString()))
+				.andExpect(jsonPath("$.ticketTypeName").value("VIP"))
+				.andExpect(jsonPath("$.buyerName").value("John Doe"))
+				.andExpect(jsonPath("$.quantity").value(1));
+
+		verify(eventService).getTicketSaleForEvent(eventId, ticketId);
 	}
 }
