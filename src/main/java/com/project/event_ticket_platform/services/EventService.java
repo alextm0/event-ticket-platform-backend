@@ -1,9 +1,6 @@
 package com.project.event_ticket_platform.services;
 
-import com.project.event_ticket_platform.dtos.CreateEventRequest;
-import com.project.event_ticket_platform.dtos.EventResponse;
-import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
-import com.project.event_ticket_platform.dtos.UpdateEventRequest;
+import com.project.event_ticket_platform.dtos.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -22,4 +19,7 @@ public interface EventService {
 	Page<EventTicketSaleResponse> getTicketSalesForEvent(UUID eventId, Pageable pageable);
 
     EventTicketSaleResponse getTicketSaleForEvent(UUID eventId, UUID ticketId);
+
+	Page<TicketTypeResponse> getTicketTypesForEvent(UUID eventId, Pageable pageable);
+
 }

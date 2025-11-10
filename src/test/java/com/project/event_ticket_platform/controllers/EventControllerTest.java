@@ -3,6 +3,7 @@ package com.project.event_ticket_platform.controllers;
 import com.project.event_ticket_platform.dtos.CreateEventRequest;
 import com.project.event_ticket_platform.dtos.EventResponse;
 import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
+import com.project.event_ticket_platform.dtos.TicketTypeResponse;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.services.EventService;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -244,5 +246,38 @@ class EventControllerTest {
 				.andExpect(jsonPath("$.quantity").value(1));
 
 		verify(eventService).getTicketSaleForEvent(eventId, ticketId);
+	}
+
+	@Test
+	void shouldGetTicketTypesForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		TicketTypeResponse ticketType = new TicketTypeResponse(
+				UUID.randomUUID(),
+				"Standard",
+				"Description1",
+				new BigDecimal("50.00"),
+				100,
+				40,
+				60,
+				true
+		);
+
+		Page<TicketTypeResponse> page = new PageImpl<>(List.of(ticketType), PageRequest.of(0, 10), 1);
+
+		when(eventService.getTicketTypesForEvent(eq(eventId), any(Pageable.class))).thenReturn(page);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/ticket-types", eventId)
+						.param("page", "0")
+						.param("size", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].id").value(ticketType.id().toString()))
+				.andExpect(jsonPath("$.content[0].name").value("Standard"))
+				.andExpect(jsonPath("$.content[0].price").value(50.00))
+				.andExpect(jsonPath("$.content[0].availableQuantity").value(60))
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.size").value(10))
+				.andExpect(jsonPath("$.totalElements").value(1));
+
+		verify(eventService).getTicketTypesForEvent(eq(eventId), any(Pageable.class));
 	}
 }

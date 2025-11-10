@@ -1,9 +1,6 @@
 package com.project.event_ticket_platform.controllers;
 
-import com.project.event_ticket_platform.dtos.CreateEventRequest;
-import com.project.event_ticket_platform.dtos.EventResponse;
-import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
-import com.project.event_ticket_platform.dtos.UpdateEventRequest;
+import com.project.event_ticket_platform.dtos.*;
 import com.project.event_ticket_platform.services.EventService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -66,5 +63,10 @@ public class EventController {
 	@GetMapping("/{eventId}/tickets/{ticketId}")
 	public EventTicketSaleResponse getTicketSale(@PathVariable UUID eventId, @PathVariable UUID ticketId) {
 		return eventService.getTicketSaleForEvent(eventId, ticketId);
+	}
+
+	@GetMapping("/{eventId}/ticket-types")
+	public Page<TicketTypeResponse> getTicketTypesForEvent(@PathVariable UUID eventId, Pageable pageable) {
+		return eventService.getTicketTypesForEvent(eventId, pageable);
 	}
 }

@@ -1,9 +1,6 @@
 package com.project.event_ticket_platform.services.impl;
 
-import com.project.event_ticket_platform.dtos.CreateEventRequest;
-import com.project.event_ticket_platform.dtos.EventResponse;
-import com.project.event_ticket_platform.dtos.EventTicketSaleResponse;
-import com.project.event_ticket_platform.dtos.UpdateEventRequest;
+import com.project.event_ticket_platform.dtos.*;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.Ticket;
@@ -11,8 +8,10 @@ import com.project.event_ticket_platform.entities.User;
 import com.project.event_ticket_platform.exceptions.*;
 import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
+import com.project.event_ticket_platform.mappers.TicketTypeMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
 import com.project.event_ticket_platform.repositories.TicketRepository;
+import com.project.event_ticket_platform.repositories.TicketTypeRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
 import com.project.event_ticket_platform.services.EventService;
 import org.springframework.data.domain.Page;
@@ -29,19 +28,23 @@ public class EventServiceImpl implements EventService {
 	private final EventRepository eventRepository;
 	private final UserRepository userRepository;
 	private final TicketRepository ticketRepository;
+	private final TicketTypeRepository ticketTypeRepository;
 	private final EventMapper eventMapper;
 	private final TicketMapper ticketMapper;
+	private final TicketTypeMapper ticketTypeMapper;
 
 	public EventServiceImpl(
             EventRepository eventRepository,
-            UserRepository userRepository, TicketRepository ticketRepository,
-            EventMapper eventMapper, TicketMapper ticketMapper
+            UserRepository userRepository, TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
+            EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper
     ) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
         this.ticketRepository = ticketRepository;
+        this.ticketTypeRepository = ticketTypeRepository;
         this.eventMapper = eventMapper;
         this.ticketMapper = ticketMapper;
+        this.ticketTypeMapper = ticketTypeMapper;
     }
 
 	@Override
@@ -101,6 +104,7 @@ public class EventServiceImpl implements EventService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public Page<EventTicketSaleResponse> getTicketSalesForEvent(UUID eventId, Pageable pageable) {
 		if (!eventRepository.existsById(eventId)) {
 			throw new EventNotFoundException(eventId);
@@ -110,6 +114,7 @@ public class EventServiceImpl implements EventService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public EventTicketSaleResponse getTicketSaleForEvent(UUID eventId, UUID ticketId) {
 		if (!eventRepository.existsById(eventId)) {
 			throw new EventNotFoundException(eventId);
@@ -121,6 +126,16 @@ public class EventServiceImpl implements EventService {
 		}
 
 		return ticketMapper.toEventTicketSaleResponse(ticket);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Page<TicketTypeResponse> getTicketTypesForEvent(UUID eventId, Pageable pageable) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		return ticketTypeRepository.findByEventId(eventId, pageable)
+				.map(ticketTypeMapper::toResponse);
 	}
 
 	private void validateNewEvent(Event event) {
