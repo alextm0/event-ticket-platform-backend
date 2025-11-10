@@ -22,4 +22,6 @@ public interface EventService {
 
 	Page<TicketTypeResponse> getTicketTypesForEvent(UUID eventId, Pageable pageable);
 
+	TicketTypeResponse getTicketTypeForEvent(UUID eventId, UUID ticketTypeId);
+
 }

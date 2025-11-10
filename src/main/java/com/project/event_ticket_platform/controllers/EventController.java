@@ -69,4 +69,9 @@ public class EventController {
 	public Page<TicketTypeResponse> getTicketTypesForEvent(@PathVariable UUID eventId, Pageable pageable) {
 		return eventService.getTicketTypesForEvent(eventId, pageable);
 	}
+
+	@GetMapping("/{eventId}/ticket-types/{ticketTypeId}")
+	public TicketTypeResponse getTicketTypeForEvent(@PathVariable UUID eventId, @PathVariable UUID ticketTypeId) {
+		return eventService.getTicketTypeForEvent(eventId, ticketTypeId);
+	}
 }

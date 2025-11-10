@@ -1,10 +1,7 @@
 package com.project.event_ticket_platform.services.impl;
 
 import com.project.event_ticket_platform.dtos.*;
-import com.project.event_ticket_platform.entities.Event;
-import com.project.event_ticket_platform.entities.EventStatus;
-import com.project.event_ticket_platform.entities.Ticket;
-import com.project.event_ticket_platform.entities.User;
+import com.project.event_ticket_platform.entities.*;
 import com.project.event_ticket_platform.exceptions.*;
 import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
@@ -136,6 +133,22 @@ public class EventServiceImpl implements EventService {
 		}
 		return ticketTypeRepository.findByEventId(eventId, pageable)
 				.map(ticketTypeMapper::toResponse);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public TicketTypeResponse getTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+				.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
+
+		if (!ticketType.getEvent().getId().equals(eventId)) {
+			throw new TicketTypeNotBelongsToEventException(ticketTypeId, eventId);
+		}
+
+		return ticketTypeMapper.toResponse(ticketType);
 	}
 
 	private void validateNewEvent(Event event) {

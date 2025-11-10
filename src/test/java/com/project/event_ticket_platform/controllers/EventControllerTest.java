@@ -280,4 +280,32 @@ class EventControllerTest {
 
 		verify(eventService).getTicketTypesForEvent(eq(eventId), any(Pageable.class));
 	}
+
+	@Test
+	void shouldGetTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+		TicketTypeResponse ticketType = new TicketTypeResponse(
+				ticketTypeId,
+				"VIP",
+				"VIP access with backstage pass",
+				new BigDecimal("150.00"),
+				50,
+				25,
+				25,
+				true
+		);
+
+		when(eventService.getTicketTypeForEvent(eventId, ticketTypeId)).thenReturn(ticketType);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketType.id().toString()))
+				.andExpect(jsonPath("$.name").value("VIP"))
+				.andExpect(jsonPath("$.price").value(150.00))
+				.andExpect(jsonPath("$.totalQuantity").value(50))
+				.andExpect(jsonPath("$.availableQuantity").value(25));
+
+		verify(eventService).getTicketTypeForEvent(eventId, ticketTypeId);
+	}
 }
