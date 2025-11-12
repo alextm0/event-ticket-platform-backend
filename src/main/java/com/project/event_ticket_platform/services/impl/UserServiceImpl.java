@@ -7,8 +7,6 @@ import com.project.event_ticket_platform.entities.UserRole;
 import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
 import com.project.event_ticket_platform.repositories.UserRepository;
 import com.project.event_ticket_platform.services.UserService;
-import org.hibernate.exception.ConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +38,10 @@ public class UserServiceImpl implements UserService {
 			throw new IllegalArgumentException("Email cannot be null or blank");
 		}
 
+		if (userRepository.existsByEmail(email)) {
+			throw new EmailAlreadyExistsException(email);
+		}
+
 		String rawPassword = request.password();
 		if (rawPassword == null || rawPassword.isBlank()) {
 			throw new IllegalArgumentException("Password cannot be null or blank");
@@ -52,15 +54,8 @@ public class UserServiceImpl implements UserService {
 		user.setPasswordHash(passwordEncoder.encode(rawPassword));
 		user.setRole(request.role() != null ? request.role() : UserRole.ATTENDEE);
 
-		try {
-			User savedUser = userRepository.save(user);
-			return toResponse(savedUser);
-		} catch (DataIntegrityViolationException ex) {
-			if (isEmailUniqueConstraintViolation(ex)) {
-				throw new EmailAlreadyExistsException(email);
-			}
-			throw ex;
-		}
+		User savedUser = userRepository.save(user);
+		return toResponse(savedUser);
 	}
 
 	@Override
@@ -81,25 +76,6 @@ public class UserServiceImpl implements UserService {
 			user.getCreatedAt(),
 			user.getUpdatedAt()
 		);
-	}
-
-	private boolean isEmailUniqueConstraintViolation(DataIntegrityViolationException exception) {
-		Throwable cause = exception.getCause();
-		while (cause != null) {
-			if (cause instanceof ConstraintViolationException constraintViolation) {
-				String constraintName = constraintViolation.getConstraintName();
-				if (constraintName != null && constraintName.toLowerCase().contains("email")) {
-					return true;
-				}
-			}
-
-			String message = cause.getMessage();
-			if (message != null && message.toLowerCase().contains("email")) {
-				return true;
-			}
-			cause = cause.getCause();
-		}
-		return false;
 	}
 }
 
