@@ -36,6 +36,12 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "WHERE t.id = :ticketId")
 	java.util.Optional<Ticket> findByIdWithQrCode(@Param("ticketId") UUID ticketId);
 
+	/**
+	 * Retrieves the Ticket associated with the given QR code ID and acquires a pessimistic write lock.
+	 *
+	 * @param qrCodeId the UUID of the QR code to look up
+	 * @return an Optional containing the matching Ticket with its QR code, ticketType, and event eagerly fetched, or empty if no match is found
+	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT t FROM Ticket t " +
 		   "JOIN FETCH t.ticketType tt " +
@@ -44,6 +50,13 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "WHERE qr.id = :qrCodeId")
 	java.util.Optional<Ticket> findByQrCodeIdWithEventForUpdate(@Param("qrCodeId") UUID qrCodeId);
 
+	/**
+	 * Retrieve a paginated list of tickets belonging to a specific event.
+	 *
+	 * @param eventId the UUID of the event whose tickets should be returned
+	 * @param pageable pagination and sorting information for the result set
+	 * @return a Page of Ticket entities for the specified event; may be empty
+	 */
 	@Query("SELECT t FROM Ticket t " +
 		   "JOIN t.ticketType tt " +
 		   "JOIN tt.event e " +
@@ -51,4 +64,3 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "WHERE e.id = :eventId")
 	Page<Ticket> findAllByEventId(@Param("eventId") UUID eventId, Pageable pageable);
 }
-

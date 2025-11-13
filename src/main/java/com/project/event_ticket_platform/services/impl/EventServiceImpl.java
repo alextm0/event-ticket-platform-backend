@@ -31,7 +31,10 @@ public class EventServiceImpl implements EventService {
 	private final TicketMapper ticketMapper;
 	private final TicketTypeMapper ticketTypeMapper;
 
-	public EventServiceImpl(
+	/**
+     * Creates a new EventServiceImpl with the required repositories and mappers.
+     */
+    public EventServiceImpl(
             EventRepository eventRepository,
             UserRepository userRepository, TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
             EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper
@@ -45,6 +48,14 @@ public class EventServiceImpl implements EventService {
         this.ticketTypeMapper = ticketTypeMapper;
     }
 
+	/**
+	 * Creates and persists a new event associated with the specified organizer.
+	 *
+	 * @param request the details of the event to create, including the organizer ID
+	 * @return the persisted event represented as an EventResponse
+	 * @throws OrganizerNotFoundException if no user exists with the given organizer ID
+	 * @throws EventValidationException   if the provided event data fails business validations
+	 */
 	@Override
 	@Transactional
 	public EventResponse createEvent(CreateEventRequest request) {
@@ -93,6 +104,12 @@ public class EventServiceImpl implements EventService {
 		return eventMapper.toResponse(saved);
 	}
 
+	/**
+	 * Deletes the event identified by the provided ID.
+	 *
+	 * @param eventId the UUID of the event to delete
+	 * @throws EventNotFoundException if no event exists with the given ID
+	 */
 	@Override
 	@Transactional
 	public void deleteEvent(UUID eventId) {
@@ -101,6 +118,14 @@ public class EventServiceImpl implements EventService {
 		eventRepository.delete(event);
 	}
 
+	/**
+	 * Fetches paginated ticket sales for the specified event.
+	 *
+	 * @param eventId the UUID of the event whose ticket sales to retrieve
+	 * @param pageable paging and sorting information
+	 * @return a page of EventTicketSaleResponse objects representing the event's ticket sales
+	 * @throws EventNotFoundException if no event exists with the provided `eventId`
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public Page<EventTicketSaleResponse> getTicketSalesForEvent(UUID eventId, Pageable pageable) {
@@ -111,6 +136,16 @@ public class EventServiceImpl implements EventService {
 				.map(ticketMapper::toEventTicketSaleResponse);
 	}
 
+	/**
+	 * Fetches the sale details for a specific ticket that belongs to a given event.
+	 *
+	 * @param eventId the UUID of the event to validate ownership against
+	 * @param ticketId the UUID of the ticket to retrieve
+	 * @return the sale details for the specified ticket and event
+	 * @throws EventNotFoundException if no event exists with the given `eventId`
+	 * @throws TicketNotFoundException if no ticket exists with the given `ticketId`
+	 * @throws TicketTypeNotBelongsToEventException if the ticket's ticket type does not belong to the specified event
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public EventTicketSaleResponse getTicketSaleForEvent(UUID eventId, UUID ticketId) {
@@ -126,6 +161,14 @@ public class EventServiceImpl implements EventService {
 		return ticketMapper.toEventTicketSaleResponse(ticket);
 	}
 
+	/**
+	 * Retrieves paginated ticket types belonging to the specified event.
+	 *
+	 * @param eventId  the UUID of the event
+	 * @param pageable pagination and sorting information
+	 * @return         a page of TicketTypeResponse objects for the event
+	 * @throws EventNotFoundException if no event exists with the given id
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public Page<TicketTypeResponse> getTicketTypesForEvent(UUID eventId, Pageable pageable) {
@@ -136,6 +179,16 @@ public class EventServiceImpl implements EventService {
 				.map(ticketTypeMapper::toResponse);
 	}
 
+	/**
+	 * Fetches the ticket type that belongs to the specified event.
+	 *
+	 * @param eventId the ID of the event to validate ownership
+	 * @param ticketTypeId the ID of the ticket type to retrieve
+	 * @return the ticket type mapped to a TicketTypeResponse
+	 * @throws EventNotFoundException if no event exists with the given eventId
+	 * @throws TicketTypeNotFoundException if no ticket type exists with the given ticketTypeId
+	 * @throws TicketTypeNotBelongsToEventException if the ticket type does not belong to the specified event
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public TicketTypeResponse getTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
@@ -152,6 +205,19 @@ public class EventServiceImpl implements EventService {
 		return ticketTypeMapper.toResponse(ticketType);
 	}
 
+	/**
+	 * Deletes a ticket type from an event.
+	 *
+	 * Validates that the event and ticket type exist, that the ticket type belongs to the specified event,
+	 * and that no tickets have been sold for that ticket type before deleting it.
+	 *
+	 * @param eventId      the UUID of the event
+	 * @param ticketTypeId the UUID of the ticket type to delete
+	 * @throws EventNotFoundException                   if no event with the given `eventId` exists
+	 * @throws TicketTypeNotFoundException              if no ticket type with the given `ticketTypeId` exists
+	 * @throws TicketTypeNotBelongsToEventException     if the ticket type does not belong to the specified event
+	 * @throws TicketTypeInUseException                 if the ticket type has one or more associated tickets
+	 */
 	@Override
 	public void deleteTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
 		if (!eventRepository.existsById(eventId)) {
@@ -171,6 +237,19 @@ public class EventServiceImpl implements EventService {
 		ticketTypeRepository.delete(ticketType);
 	}
 
+	/**
+	 * Applies partial updates to a ticket type belonging to the specified event and returns the updated representation.
+	 *
+	 * @param eventId      the UUID of the event that must own the ticket type
+	 * @param ticketTypeId the UUID of the ticket type to update
+	 * @param request      the patch request containing optional fields to apply (name, description, price, quantity, active)
+	 * @return             the updated TicketTypeResponse reflecting saved changes
+	 * @throws EventNotFoundException                     if no event exists with the given eventId
+	 * @throws TicketTypeNotFoundException                if no ticket type exists with the given ticketTypeId
+	 * @throws TicketTypeNotBelongsToEventException       if the ticket type does not belong to the specified event
+	 * @throws EventValidationException                   if any provided field fails validation (blank name/description, negative price,
+	 *                                                   or quantity less than tickets already sold)
+	 */
 	@Override
 	@Transactional
 	public TicketTypeResponse patchTicketTypeForEvent(UUID eventId, UUID ticketTypeId, PatchTicketTypeRequest request) {
@@ -221,6 +300,16 @@ public class EventServiceImpl implements EventService {
 		return ticketTypeMapper.toResponse(savedTicketType);
 	}
 
+	/**
+	 * Validates that a newly created Event contains required fields and a valid timeline.
+	 *
+	 * <p>Checks that title, description, and location are not blank; that start and end
+	 * times are present; that the end time is after the start time; and that the start
+	 * time is in the future.</p>
+	 *
+	 * @param event the Event to validate
+	 * @throws EventValidationException if any required field is missing or any time constraint is violated
+	 */
 	private void validateNewEvent(Event event) {
 		if (isBlank(event.getTitle())) {
 			throw new EventValidationException("Event title is required.");
