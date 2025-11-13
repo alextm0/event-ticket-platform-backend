@@ -307,8 +307,8 @@ public class EventServiceImpl implements EventService {
 		if (request.totalQuantity() == null) {
 			throw new EventValidationException("Ticket type quantity is required.");
 		}
-		if (request.totalQuantity() < 0) {
-			throw new EventValidationException("Ticket type quantity cannot be negative.");
+		if (request.totalQuantity() <= 0) {
+			throw new EventValidationException("Ticket type quantity must be greater than zero.");
 		}
 	}
 
