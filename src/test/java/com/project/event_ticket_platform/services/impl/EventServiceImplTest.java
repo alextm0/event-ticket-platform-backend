@@ -1,10 +1,13 @@
 package com.project.event_ticket_platform.services.impl;
 
 import com.project.event_ticket_platform.dtos.CreateEventRequest;
+import com.project.event_ticket_platform.dtos.CreateTicketTypeRequest;
 import com.project.event_ticket_platform.dtos.EventResponse;
+import com.project.event_ticket_platform.dtos.TicketTypeResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
+import com.project.event_ticket_platform.entities.TicketType;
 import com.project.event_ticket_platform.entities.User;
 import com.project.event_ticket_platform.entities.UserRole;
 import com.project.event_ticket_platform.exceptions.EventNotFoundException;
@@ -28,6 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -295,6 +299,44 @@ class EventServiceImplTest {
 		eventService.deleteEvent(eventId);
 
 		verify(eventRepository).delete(event);
+	}
+
+	@Test
+	void shouldCreateTicketTypeForEvent() {
+		UUID eventId = UUID.randomUUID();
+		Event event = new Event();
+		event.setId(eventId);
+
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(ticketTypeRepository.save(any(TicketType.class))).thenAnswer(invocation -> {
+			TicketType ticketType = invocation.getArgument(0);
+			ticketType.setId(UUID.fromString("bbbbbbbb-1111-2222-3333-444444444444"));
+			return ticketType;
+		});
+
+		CreateTicketTypeRequest request = new CreateTicketTypeRequest(
+				"VIP",
+				"Front row access",
+				new BigDecimal("120.00"),
+				80,
+				true
+		);
+
+		TicketTypeResponse response = eventService.createTicketTypeForEvent(eventId, request);
+
+		assertThat(response.id()).isEqualTo(UUID.fromString("bbbbbbbb-1111-2222-3333-444444444444"));
+		assertThat(response.name()).isEqualTo("VIP");
+		assertThat(response.price()).isEqualByComparingTo("120.00");
+		assertThat(response.totalQuantity()).isEqualTo(80);
+		assertThat(response.availableQuantity()).isEqualTo(80);
+		assertThat(response.active()).isTrue();
+
+		ArgumentCaptor<TicketType> captor = ArgumentCaptor.forClass(TicketType.class);
+		verify(ticketTypeRepository).save(captor.capture());
+		TicketType saved = captor.getValue();
+		assertThat(saved.getEvent()).isEqualTo(event);
+		assertThat(saved.getSoldCount()).isEqualTo(0);
+		assertThat(saved.isActive()).isTrue();
 	}
 
 	@Test

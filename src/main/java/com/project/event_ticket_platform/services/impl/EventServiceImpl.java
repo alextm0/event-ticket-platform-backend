@@ -154,6 +154,27 @@ public class EventServiceImpl implements EventService {
 
 	@Override
 	@Transactional
+	public TicketTypeResponse createTicketTypeForEvent(UUID eventId, CreateTicketTypeRequest request) {
+		Event event = eventRepository.findById(eventId)
+			.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		validateNewTicketTypeRequest(request);
+
+		TicketType ticketType = new TicketType();
+		ticketType.setEvent(event);
+		ticketType.setName(request.name());
+		ticketType.setDescription(request.description());
+		ticketType.setPrice(request.price());
+		ticketType.setTotalQuantity(request.totalQuantity());
+		ticketType.setSoldCount(0);
+		ticketType.setActive(request.isActive());
+
+		TicketType savedTicketType = ticketTypeRepository.save(ticketType);
+		return ticketTypeMapper.toResponse(savedTicketType);
+	}
+
+	@Override
+	@Transactional
 	public void deleteTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
 		if (!eventRepository.existsById(eventId)) {
 			throw new EventNotFoundException(eventId);
@@ -264,6 +285,30 @@ public class EventServiceImpl implements EventService {
 
 		if (startChanged && start.isBefore(Instant.now())) {
 			throw new EventValidationException("Updated start time must be in the future.");
+		}
+	}
+
+	private void validateNewTicketTypeRequest(CreateTicketTypeRequest request) {
+		if (request == null) {
+			throw new EventValidationException("Ticket type request is required.");
+		}
+
+		if (request.name() == null || request.name().isBlank()) {
+			throw new EventValidationException("Ticket type name is required.");
+		}
+
+		if (request.price() == null) {
+			throw new EventValidationException("Ticket type price is required.");
+		}
+		if (request.price().compareTo(BigDecimal.ZERO) < 0) {
+			throw new EventValidationException("Ticket type price cannot be negative.");
+		}
+
+		if (request.totalQuantity() == null) {
+			throw new EventValidationException("Ticket type quantity is required.");
+		}
+		if (request.totalQuantity() < 0) {
+			throw new EventValidationException("Ticket type quantity cannot be negative.");
 		}
 	}
 
