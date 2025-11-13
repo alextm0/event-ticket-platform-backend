@@ -22,6 +22,6 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, UUID> {
 	Optional<TicketType> findByIdWithLock(@Param("id") UUID id);
 
 	@Query("SELECT tt FROM TicketType tt WHERE tt.event.id = :eventId")
-	Page<TicketType> findByEventId(UUID eventId, Pageable pageable);
+	Page<TicketType> findByEventId(@Param("eventId") UUID eventId, Pageable pageable);
 }
 

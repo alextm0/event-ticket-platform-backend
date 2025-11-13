@@ -153,6 +153,7 @@ public class EventServiceImpl implements EventService {
 	}
 
 	@Override
+	@Transactional
 	public void deleteTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
 		if (!eventRepository.existsById(eventId)) {
 			throw new EventNotFoundException(eventId);
