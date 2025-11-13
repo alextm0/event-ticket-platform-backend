@@ -2,6 +2,7 @@ package com.project.event_ticket_platform.controllers;
 
 import com.project.event_ticket_platform.dtos.*;
 import com.project.event_ticket_platform.services.EventService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/events")
+@Tag(name = "Events", description = "APIs for managing events and related ticket types and sales")
 public class EventController {
 
 	private final EventService eventService;
