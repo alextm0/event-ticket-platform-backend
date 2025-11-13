@@ -17,6 +17,7 @@ public interface TicketValidationMapper {
 	@Mapping(source = "ticket.id", target = "ticketId")
 	@Mapping(source = "ticket.qrCode.id", target = "qrCodeId")
 	@Mapping(source = "ticket.status", target = "ticketStatus")
+	@Mapping(source = "status", target = "validationStatus")
 	@Mapping(source = "validationDateTime", target = "validatedAt")
 	TicketValidationResponse toResponse(TicketValidation validation);
 }

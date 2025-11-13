@@ -304,6 +304,46 @@ class EventControllerTest {
 	}
 
 	@Test
+	void shouldCreateTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+
+		TicketTypeResponse response = new TicketTypeResponse(
+				ticketTypeId,
+				"VIP",
+				"VIP access",
+				new BigDecimal("150.00"),
+				50,
+				0,
+				50,
+				true
+		);
+
+		when(eventService.createTicketTypeForEvent(eq(eventId), any(CreateTicketTypeRequest.class))).thenReturn(response);
+
+		mockMvc.perform(post("/api/v1/events/{eventId}/ticket-types", eventId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "name": "VIP",
+								  "description": "VIP access",
+								  "price": 150.00,
+								  "totalQuantity": 50,
+								  "active": true
+								}
+								"""))
+				.andExpect(status().isCreated())
+				.andExpect(header().string("Location", "/api/v1/events/" + eventId + "/ticket-types/" + ticketTypeId))
+				.andExpect(jsonPath("$.id").value(ticketTypeId.toString()))
+				.andExpect(jsonPath("$.name").value("VIP"))
+				.andExpect(jsonPath("$.price").value(150.00))
+				.andExpect(jsonPath("$.totalQuantity").value(50))
+				.andExpect(jsonPath("$.availableQuantity").value(50));
+
+		verify(eventService).createTicketTypeForEvent(eq(eventId), any(CreateTicketTypeRequest.class));
+	}
+
+	@Test
 	void shouldDeleteTicketTypeForEvent() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		UUID ticketTypeId = UUID.randomUUID();

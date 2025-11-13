@@ -12,12 +12,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.hibernate.type.SqlTypes;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -35,7 +38,12 @@ public class TicketValidation {
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "ticket_id", nullable = false)
+	private Ticket ticket;
+
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "status", nullable = false, columnDefinition = "ticket_validation_status")
 	private TicketValidationEnum status;
 
@@ -44,10 +52,7 @@ public class TicketValidation {
 	private Instant validationDateTime;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "validation_method", nullable = false)
 	private TicketValidationMethodEnum validationMethod;
-
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "ticket_id", nullable = false)
-	private Ticket ticket;
 }

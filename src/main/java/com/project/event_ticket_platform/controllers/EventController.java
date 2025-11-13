@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
+import org.springdoc.core.annotations.ParameterObject;
+
 @RestController
 @RequestMapping("/api/v1/events")
 @Tag(name = "Events", description = "APIs for managing events and related ticket types and sales")
@@ -32,7 +36,12 @@ public class EventController {
 	}
 
 	@GetMapping
-	public Page<EventResponse> getEvents(Pageable pageable) {
+	@Parameters({
+		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
+		@Parameter(name = "size", description = "Page size", example = "20"),
+		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: startTime,asc", example = "startTime,asc")
+	})
+	public Page<EventResponse> getEvents(@ParameterObject Pageable pageable) {
 		return eventService.getAllEvents(pageable);
 	}
 
@@ -51,7 +60,12 @@ public class EventController {
 	}
 
 	@GetMapping("/{eventId}/tickets")
-	public Page<EventTicketSaleResponse> getTicketSalesForEvent(@PathVariable UUID eventId, Pageable pageable) {
+	@Parameters({
+		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
+		@Parameter(name = "size", description = "Page size", example = "20"),
+		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: createdAt,desc", example = "createdAt,desc")
+	})
+	public Page<EventTicketSaleResponse> getTicketSalesForEvent(@PathVariable UUID eventId, @ParameterObject Pageable pageable) {
 		return eventService.getTicketSalesForEvent(eventId, pageable);
 	}
 
@@ -61,13 +75,29 @@ public class EventController {
 	}
 
 	@GetMapping("/{eventId}/ticket-types")
-	public Page<TicketTypeResponse> getTicketTypesForEvent(@PathVariable UUID eventId, Pageable pageable) {
+	@Parameters({
+		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
+		@Parameter(name = "size", description = "Page size", example = "20"),
+		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: name,asc", example = "name,asc")
+	})
+	public Page<TicketTypeResponse> getTicketTypesForEvent(@PathVariable UUID eventId, @ParameterObject Pageable pageable) {
 		return eventService.getTicketTypesForEvent(eventId, pageable);
 	}
 
 	@GetMapping("/{eventId}/ticket-types/{ticketTypeId}")
 	public TicketTypeResponse getTicketTypeForEvent(@PathVariable UUID eventId, @PathVariable UUID ticketTypeId) {
 		return eventService.getTicketTypeForEvent(eventId, ticketTypeId);
+	}
+
+	@PostMapping("/{eventId}/ticket-types")
+	public ResponseEntity<TicketTypeResponse> createTicketTypeForEvent(
+			@PathVariable UUID eventId,
+			@Valid @RequestBody CreateTicketTypeRequest request
+	) {
+		TicketTypeResponse createdTicketType = eventService.createTicketTypeForEvent(eventId, request);
+		return ResponseEntity
+			.created(URI.create("/api/v1/events/" + eventId + "/ticket-types/" + createdTicketType.id()))
+			.body(createdTicketType);
 	}
 
 	@DeleteMapping("/{eventId}/ticket-types/{ticketTypeId}")
