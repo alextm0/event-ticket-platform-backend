@@ -1,6 +1,19 @@
 package com.project.event_ticket_platform.controllers.advice;
 
-import com.project.event_ticket_platform.exceptions.*;
+import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
+import com.project.event_ticket_platform.exceptions.EventNotFoundException;
+import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
+import com.project.event_ticket_platform.exceptions.EventValidationException;
+import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
+import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotActiveException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotBelongsToEventException;
+import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
+import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
+import com.project.event_ticket_platform.exceptions.UserNotFoundException;
+import com.project.event_ticket_platform.exceptions.QrCodeGenerationException;
+import com.project.event_ticket_platform.exceptions.QrCodeNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -98,6 +111,14 @@ public class GlobalExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(QrCodeNotFoundException.class)
+	public ProblemDetail handleQrCodeNotFound(QrCodeNotFoundException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+		problem.setTitle("QR code not found");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
 	@ExceptionHandler(QrCodeGenerationException.class)
 	public ProblemDetail handleQrCodeGenerationException(QrCodeGenerationException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -142,14 +163,6 @@ public class GlobalExceptionHandler {
 	public ProblemDetail handleGeneric(Exception exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
 		problem.setTitle("Unexpected error");
-		problem.setDetail(exception.getMessage());
-		return problem;
-	}
-
-	@ExceptionHandler(TicketTypeInUseException.class)
-	public ProblemDetail handleTicketTypeInUse(TicketTypeInUseException exception) {
-		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-		problem.setTitle("Ticket type in use");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}
