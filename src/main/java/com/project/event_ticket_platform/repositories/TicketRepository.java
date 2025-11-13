@@ -1,6 +1,8 @@
 package com.project.event_ticket_platform.repositories;
 
 import com.project.event_ticket_platform.entities.Ticket;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
@@ -41,5 +43,12 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "JOIN FETCH t.qrCode qr " +
 		   "WHERE qr.id = :qrCodeId")
 	java.util.Optional<Ticket> findByQrCodeIdWithEventForUpdate(@Param("qrCodeId") UUID qrCodeId);
+
+	@Query("SELECT t FROM Ticket t " +
+		   "JOIN t.ticketType tt " +
+		   "JOIN tt.event e " +
+			"JOIN t.order o " +
+		   "WHERE e.id = :eventId")
+	Page<Ticket> findAllByEventId(@Param("eventId") UUID eventId, Pageable pageable);
 }
 

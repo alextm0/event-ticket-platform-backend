@@ -1,7 +1,6 @@
 package com.project.event_ticket_platform.controllers;
 
-import com.project.event_ticket_platform.dtos.CreateEventRequest;
-import com.project.event_ticket_platform.dtos.EventResponse;
+import com.project.event_ticket_platform.dtos.*;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.services.EventService;
 import org.junit.jupiter.api.Test;
@@ -20,18 +19,17 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -179,5 +177,176 @@ class EventControllerTest {
 			.andExpect(status().isNoContent());
 
 		verify(eventService).deleteEvent(eventId);
+	}
+
+	@Test
+	void shouldGetTicketSalesForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketId = UUID.randomUUID();
+		Instant purchaseDate = Instant.now();
+		EventTicketSaleResponse ticketSale = new EventTicketSaleResponse(
+				ticketId,
+				eventId,
+				UUID.randomUUID(),
+				"VIP",
+				UUID.randomUUID(),
+				"John Doe",
+				1,
+				purchaseDate
+		);
+
+		Page<EventTicketSaleResponse> page = new PageImpl<>(List.of(ticketSale), PageRequest.of(0, 10), 1);
+
+		when(eventService.getTicketSalesForEvent(any(UUID.class), any(Pageable.class))).thenReturn(page);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/tickets", eventId)
+						.param("page", "0")
+						.param("size", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].id").value(ticketSale.id().toString()))
+				.andExpect(jsonPath("$.content[0].ticketTypeName").value("VIP"))
+				.andExpect(jsonPath("$.content[0].buyerName").value("John Doe"))
+				.andExpect(jsonPath("$.content[0].quantity").value(1))
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.size").value(10))
+				.andExpect(jsonPath("$.totalElements").value(1));
+
+		verify(eventService).getTicketSalesForEvent(any(UUID.class), any(Pageable.class));
+	}
+
+	@Test
+	void shouldGetTicketSaleForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketId = UUID.randomUUID();
+		Instant purchaseDate = Instant.now();
+		EventTicketSaleResponse ticketSale = new EventTicketSaleResponse(
+				ticketId,
+				eventId,
+				UUID.randomUUID(),
+				"VIP",
+				UUID.randomUUID(),
+				"John Doe",
+				1,
+				purchaseDate
+		);
+
+		when(eventService.getTicketSaleForEvent(eventId, ticketId)).thenReturn(ticketSale);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/tickets/{ticketId}", eventId, ticketId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketSale.id().toString()))
+				.andExpect(jsonPath("$.ticketTypeName").value("VIP"))
+				.andExpect(jsonPath("$.buyerName").value("John Doe"))
+				.andExpect(jsonPath("$.quantity").value(1));
+
+		verify(eventService).getTicketSaleForEvent(eventId, ticketId);
+	}
+
+	@Test
+	void shouldGetTicketTypesForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		TicketTypeResponse ticketType = new TicketTypeResponse(
+				UUID.randomUUID(),
+				"Standard",
+				"Description1",
+				new BigDecimal("50.00"),
+				100,
+				40,
+				60,
+				true
+		);
+
+		Page<TicketTypeResponse> page = new PageImpl<>(List.of(ticketType), PageRequest.of(0, 10), 1);
+
+		when(eventService.getTicketTypesForEvent(eq(eventId), any(Pageable.class))).thenReturn(page);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/ticket-types", eventId)
+						.param("page", "0")
+						.param("size", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].id").value(ticketType.id().toString()))
+				.andExpect(jsonPath("$.content[0].name").value("Standard"))
+				.andExpect(jsonPath("$.content[0].price").value(50.00))
+				.andExpect(jsonPath("$.content[0].availableQuantity").value(60))
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.size").value(10))
+				.andExpect(jsonPath("$.totalElements").value(1));
+
+		verify(eventService).getTicketTypesForEvent(eq(eventId), any(Pageable.class));
+	}
+
+	@Test
+	void shouldGetTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+		TicketTypeResponse ticketType = new TicketTypeResponse(
+				ticketTypeId,
+				"VIP",
+				"VIP access with backstage pass",
+				new BigDecimal("150.00"),
+				50,
+				25,
+				25,
+				true
+		);
+
+		when(eventService.getTicketTypeForEvent(eventId, ticketTypeId)).thenReturn(ticketType);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketType.id().toString()))
+				.andExpect(jsonPath("$.name").value("VIP"))
+				.andExpect(jsonPath("$.price").value(150.00))
+				.andExpect(jsonPath("$.totalQuantity").value(50))
+				.andExpect(jsonPath("$.availableQuantity").value(25));
+
+		verify(eventService).getTicketTypeForEvent(eventId, ticketTypeId);
+	}
+
+	@Test
+	void shouldDeleteTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+
+		mockMvc.perform(delete("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId))
+				.andExpect(status().isNoContent());
+
+		verify(eventService).deleteTicketTypeForEvent(eventId, ticketTypeId);
+	}
+
+	@Test
+	void shouldPatchTicketTypeForEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID ticketTypeId = UUID.randomUUID();
+		TicketTypeResponse response = new TicketTypeResponse(
+				ticketTypeId,
+				"VIP Silver",
+				"VIP access with backstage pass and complimentary drinks",
+				new BigDecimal("200.00"),
+				75,
+				50,
+				25,
+				true
+		);
+
+		when(eventService.patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class)))
+				.thenReturn(response);
+
+		mockMvc.perform(patch("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+                                 {
+                                   "name": "VIP Silver",
+                                   "price": 200.00,
+                                   "quantity": 25
+                                 }
+                                 """))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketTypeId.toString()))
+				.andExpect(jsonPath("$.name").value("VIP Silver"))
+				.andExpect(jsonPath("$.price").value(200.00))
+				.andExpect(jsonPath("$.availableQuantity").value(25));
+
+		verify(eventService).patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class));
 	}
 }
