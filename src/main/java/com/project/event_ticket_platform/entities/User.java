@@ -26,6 +26,14 @@ import java.util.UUID;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "users")
+@org.hibernate.annotations.SQLInsert(
+	sql = "INSERT INTO users (created_at, email, name, password_hash, role, updated_at, id) " +
+		  "VALUES (?, ?, ?, ?, CAST(? AS user_role), ?, ?)"
+)
+@org.hibernate.annotations.SQLUpdate(
+	sql = "UPDATE users SET email = ?, name = ?, password_hash = ?, " +
+		  "role = CAST(? AS user_role), updated_at = ? WHERE id = ?"
+)
 @EntityListeners(AuditingEntityListener.class)
 public class User {
 

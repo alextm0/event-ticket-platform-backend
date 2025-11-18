@@ -5,6 +5,7 @@ import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
 import com.project.event_ticket_platform.exceptions.EventValidationException;
 import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
+import com.project.event_ticket_platform.exceptions.InvalidCredentialsException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import com.project.event_ticket_platform.exceptions.TicketNotFoundException;
 import com.project.event_ticket_platform.exceptions.TicketTypeNotActiveException;
@@ -155,6 +156,14 @@ public class GlobalExceptionHandler {
 	public ProblemDetail handleTicketTypeNotActive(TicketTypeNotActiveException exception) {
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
 		problem.setTitle("Ticket type is not active");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(InvalidCredentialsException.class)
+	public ProblemDetail handleInvalidCredentials(InvalidCredentialsException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
+		problem.setTitle("Invalid credentials");
 		problem.setDetail(exception.getMessage());
 		return problem;
 	}
