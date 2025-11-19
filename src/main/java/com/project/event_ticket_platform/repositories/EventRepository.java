@@ -65,4 +65,6 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
 		return new PageImpl<>(orderedEvents, pageable, total);
 	}
+
+	Page<Event> findAllByOrganizerId(UUID organizerId, Pageable pageable);
 }

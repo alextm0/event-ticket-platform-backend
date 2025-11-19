@@ -66,6 +66,13 @@ public class EventServiceImpl implements EventService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public Page<EventResponse> getEventsByOrganizer(UUID organizerId, Pageable pageable) {
+		return eventRepository.findAllByOrganizerId(organizerId, pageable)
+			.map(eventMapper::toResponse);
+	}
+
+	@Override
 	@Transactional
 	public EventResponse updateEvent(UUID eventId, UpdateEventRequest request) {
 		Event event = eventRepository.findById(eventId)
