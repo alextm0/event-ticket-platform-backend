@@ -39,9 +39,16 @@ public class EventController {
 	@Parameters({
 		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
 		@Parameter(name = "size", description = "Page size", example = "20"),
-		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: startTime,asc", example = "startTime,asc")
+		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: startTime,asc", example = "startTime,asc"),
+		@Parameter(name = "organizerId", description = "Filter events by organizer ID", example = "517e1133-7615-4c73-8634-728d64c0511f")
 	})
-	public Page<EventResponse> getEvents(@ParameterObject Pageable pageable) {
+	public Page<EventResponse> getEvents(
+			@RequestParam(value = "organizerId", required = false) UUID organizerId,
+			@ParameterObject Pageable pageable
+	) {
+		if (organizerId != null) {
+			return eventService.getEventsByOrganizer(organizerId, pageable);
+		}
 		return eventService.getAllEvents(pageable);
 	}
 
