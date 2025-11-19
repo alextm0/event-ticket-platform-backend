@@ -3,8 +3,8 @@ package com.project.event_ticket_platform.services;
 import com.project.event_ticket_platform.dtos.LoginRequest;
 import com.project.event_ticket_platform.dtos.LoginResponse;
 import com.project.event_ticket_platform.entities.User;
-import com.project.event_ticket_platform.entities.UserRole;
 import com.project.event_ticket_platform.exceptions.InvalidCredentialsException;
+import com.project.event_ticket_platform.exceptions.InvalidRoleException;
 import com.project.event_ticket_platform.repositories.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -32,14 +32,14 @@ public class AuthService {
 		User user = userRepository.findByEmail(request.email())
 			.orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
 
-		// Verify password
+		// Verify password first
 		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
 			throw new InvalidCredentialsException("Invalid email or password");
 		}
 
-		// Verify role matches
-		if (user.getRole() != request.role()) {
-			throw new InvalidCredentialsException("Invalid role for this user");
+		// Verify role matches (email and password are correct at this point)
+		if (request.role() != null && user.getRole() != request.role()) {
+			throw new InvalidRoleException("Invalid role for this user");
 		}
 
 		// Generate JWT token
@@ -57,4 +57,3 @@ public class AuthService {
 		);
 	}
 }
-
