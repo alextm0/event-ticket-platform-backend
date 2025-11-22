@@ -67,7 +67,9 @@ class TicketValidationServiceTest {
 
 	private UUID eventId;
 	private UUID staffId;
+	private UUID ticketId;
 	private UUID qrCodeId;
+	private String qrCodeData;
 	private Event event;
 	private User staffUser;
 	private Ticket ticket;
@@ -77,8 +79,15 @@ class TicketValidationServiceTest {
 	void setUp() {
 		eventId = UUID.randomUUID();
 		staffId = UUID.randomUUID();
+		ticketId = UUID.randomUUID();
 		qrCodeId = UUID.randomUUID();
-		request = new ValidateTicketRequest(qrCodeId);
+		UUID userId = UUID.randomUUID();
+		UUID orderId = UUID.randomUUID();
+		
+		// Create QR code data string in the format: TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
+		qrCodeData = String.format("TICKET:%s|EVENT:%s|USER:%s|ORDER:%s|TIMESTAMP:%d",
+			ticketId, eventId, userId, orderId, Instant.now().toEpochMilli());
+		request = new ValidateTicketRequest(qrCodeData);
 
 		event = new Event();
 		event.setId(eventId);
@@ -95,7 +104,7 @@ class TicketValidationServiceTest {
 		qrCode.setId(qrCodeId);
 
 		ticket = new Ticket();
-		ticket.setId(UUID.randomUUID());
+		ticket.setId(ticketId);
 		ticket.setStatus(TicketStatus.PURCHASED);
 		ticket.setTicketType(ticketType);
 		ticket.setQrCode(qrCode);
@@ -105,7 +114,7 @@ class TicketValidationServiceTest {
 	@DisplayName("Should validate ticket successfully and mark it as checked in")
 	void validateTicket_successful() {
 		mockStaffAccess();
-		when(ticketRepository.findByQrCodeIdWithEventForUpdate(qrCodeId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findByTicketIdWithEventForUpdate(ticketId)).thenReturn(Optional.of(ticket));
 		when(ticketValidationRepository.save(any(TicketValidation.class))).thenAnswer(invocation -> {
 			TicketValidation validation = invocation.getArgument(0);
 			validation.setId(UUID.randomUUID());
@@ -138,7 +147,7 @@ class TicketValidationServiceTest {
 		ticket.setCheckedInAt(Instant.now().minusSeconds(60));
 
 		mockStaffAccess();
-		when(ticketRepository.findByQrCodeIdWithEventForUpdate(qrCodeId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findByTicketIdWithEventForUpdate(ticketId)).thenReturn(Optional.of(ticket));
 		when(ticketValidationRepository.save(any(TicketValidation.class))).thenAnswer(invocation -> {
 			TicketValidation validation = invocation.getArgument(0);
 			validation.setId(UUID.randomUUID());
@@ -161,7 +170,7 @@ class TicketValidationServiceTest {
 		ticket.getTicketType().setEvent(differentEvent);
 
 		mockStaffAccess();
-		when(ticketRepository.findByQrCodeIdWithEventForUpdate(qrCodeId)).thenReturn(Optional.of(ticket));
+		when(ticketRepository.findByTicketIdWithEventForUpdate(ticketId)).thenReturn(Optional.of(ticket));
 
 		assertThrows(UnauthorizedAccessException.class, () ->
 			ticketValidationService.validateTicket(eventId, staffId, request)
@@ -232,12 +241,12 @@ class TicketValidationServiceTest {
 	@DisplayName("Should raise when QR code cannot be resolved to a ticket")
 	void validateTicket_qrCodeNotFound() {
 		mockStaffAccess();
-		when(ticketRepository.findByQrCodeIdWithEventForUpdate(qrCodeId)).thenReturn(Optional.empty());
+		when(ticketRepository.findByTicketIdWithEventForUpdate(ticketId)).thenReturn(Optional.empty());
 
 		assertThrows(QrCodeNotFoundException.class, () ->
 			ticketValidationService.validateTicket(eventId, staffId, request)
 		);
-		verify(ticketRepository).findByQrCodeIdWithEventForUpdate(qrCodeId);
+		verify(ticketRepository).findByTicketIdWithEventForUpdate(ticketId);
 	}
 
 	@Test
