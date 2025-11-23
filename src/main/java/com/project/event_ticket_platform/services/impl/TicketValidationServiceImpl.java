@@ -56,15 +56,19 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 	@Override
 	@Transactional
 	public TicketValidationResponse validateTicket(UUID eventId, UUID staffId, ValidateTicketRequest request) {
-		if (request == null || request.qrCodeId() == null) {
-			throw new IllegalArgumentException("QR code id is required for validation.");
+		if (request == null || request.qrCodeId() == null || request.qrCodeId().isBlank()) {
+			throw new IllegalArgumentException("QR code data is required for validation.");
 		}
 
 		Event event = loadEvent(eventId);
 		validateStaffAccess(eventId, staffId);
 
-		Ticket ticket = ticketRepository.findByQrCodeIdWithEventForUpdate(request.qrCodeId())
-			.orElseThrow(() -> new QrCodeNotFoundException(request.qrCodeId()));
+		// Parse QR code string to extract ticket ID
+		// Format: TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
+		UUID ticketId = parseTicketIdFromQrCode(request.qrCodeId());
+
+		Ticket ticket = ticketRepository.findByTicketIdWithEventForUpdate(ticketId)
+			.orElseThrow(() -> new QrCodeNotFoundException(ticketId));
 
 		if (!ticket.getTicketType().getEvent().getId().equals(event.getId())) {
 			throw new UnauthorizedAccessException("Ticket does not belong to the specified event.");
@@ -120,6 +124,43 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 		boolean assigned = eventStaffRepository.existsByEventIdAndStaffId(eventId, staffId);
 		if (!assigned) {
 			throw new UnauthorizedAccessException("Staff member is not assigned to this event.");
+		}
+	}
+
+	/**
+	 * Parses the ticket ID from the QR code data string.
+	 * Expected format: TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
+	 *
+	 * @param qrCodeData The QR code data string
+	 * @return The ticket UUID extracted from the QR code
+	 * @throws IllegalArgumentException if the QR code format is invalid
+	 */
+	private UUID parseTicketIdFromQrCode(String qrCodeData) {
+		if (qrCodeData == null || qrCodeData.isBlank()) {
+			throw new IllegalArgumentException("QR code data cannot be null or empty.");
+		}
+
+		try {
+			// Extract the ticket ID from the format: TICKET:{ticketId}|...
+			String ticketPrefix = "TICKET:";
+			int ticketStartIndex = qrCodeData.indexOf(ticketPrefix);
+			if (ticketStartIndex == -1) {
+				throw new IllegalArgumentException("Invalid QR code format: missing TICKET prefix.");
+			}
+
+			int ticketIdStart = ticketStartIndex + ticketPrefix.length();
+			int ticketIdEnd = qrCodeData.indexOf('|', ticketIdStart);
+			if (ticketIdEnd == -1) {
+				throw new IllegalArgumentException("Invalid QR code format: missing separator after ticket ID.");
+			}
+
+			String ticketIdString = qrCodeData.substring(ticketIdStart, ticketIdEnd);
+			return UUID.fromString(ticketIdString);
+		} catch (StringIndexOutOfBoundsException | IllegalArgumentException e) {
+			if (e instanceof IllegalArgumentException && e.getMessage().startsWith("Invalid UUID")) {
+				throw new IllegalArgumentException("Invalid QR code format: ticket ID is not a valid UUID.", e);
+			}
+			throw new IllegalArgumentException("Invalid QR code format: " + e.getMessage(), e);
 		}
 	}
 }

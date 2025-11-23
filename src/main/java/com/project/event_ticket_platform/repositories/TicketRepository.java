@@ -44,6 +44,14 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 		   "WHERE qr.id = :qrCodeId")
 	java.util.Optional<Ticket> findByQrCodeIdWithEventForUpdate(@Param("qrCodeId") UUID qrCodeId);
 
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT t FROM Ticket t " +
+		   "JOIN FETCH t.ticketType tt " +
+		   "JOIN FETCH tt.event e " +
+		   "JOIN FETCH t.qrCode qr " +
+		   "WHERE t.id = :ticketId")
+	java.util.Optional<Ticket> findByTicketIdWithEventForUpdate(@Param("ticketId") UUID ticketId);
+
 	@Query("SELECT t FROM Ticket t " +
 		   "JOIN t.ticketType tt " +
 		   "JOIN tt.event e " +
