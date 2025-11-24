@@ -32,14 +32,6 @@ import java.util.UUID;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "events", indexes = @Index(name = "idx_events_status", columnList = "status"))
-@org.hibernate.annotations.SQLInsert(
-	sql = "INSERT INTO events (created_at, description, end_time, location, organizer_id, start_time, status, title, updated_at, id) " +
-		  "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS event_status), ?, ?, ?)"
-)
-@org.hibernate.annotations.SQLUpdate(
-	sql = "UPDATE events SET description = ?, end_time = ?, location = ?, organizer_id = ?, start_time = ?, " +
-		  "status = CAST(? AS event_status), title = ?, updated_at = ? WHERE id = ?"
-)
 @EntityListeners(AuditingEntityListener.class)
 public class Event {
 
@@ -67,6 +59,7 @@ public class Event {
 	private Instant endTime;
 
 	@Enumerated(EnumType.STRING)
+	@org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
 	@Column(name = "status", nullable = false, columnDefinition = "event_status")
 	private EventStatus status = EventStatus.DRAFT;
 

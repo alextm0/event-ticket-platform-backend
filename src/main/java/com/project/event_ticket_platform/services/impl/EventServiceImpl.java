@@ -13,6 +13,8 @@ import com.project.event_ticket_platform.repositories.UserRepository;
 import com.project.event_ticket_platform.services.EventService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,24 +34,23 @@ public class EventServiceImpl implements EventService {
 	private final TicketTypeMapper ticketTypeMapper;
 
 	public EventServiceImpl(
-            EventRepository eventRepository,
-            UserRepository userRepository, TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
-            EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper
-    ) {
+			EventRepository eventRepository,
+			UserRepository userRepository, TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
+			EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
-        this.ticketRepository = ticketRepository;
-        this.ticketTypeRepository = ticketTypeRepository;
-        this.eventMapper = eventMapper;
-        this.ticketMapper = ticketMapper;
-        this.ticketTypeMapper = ticketTypeMapper;
-    }
+		this.ticketRepository = ticketRepository;
+		this.ticketTypeRepository = ticketTypeRepository;
+		this.eventMapper = eventMapper;
+		this.ticketMapper = ticketMapper;
+		this.ticketTypeMapper = ticketTypeMapper;
+	}
 
 	@Override
 	@Transactional
 	public EventResponse createEvent(CreateEventRequest request) {
 		User organizer = userRepository.findById(request.organizerId())
-			.orElseThrow(() -> new OrganizerNotFoundException(request.organizerId()));
+				.orElseThrow(() -> new OrganizerNotFoundException(request.organizerId()));
 
 		Event event = eventMapper.toEntity(request);
 		event.setOrganizer(organizer);
@@ -62,21 +63,24 @@ public class EventServiceImpl implements EventService {
 	@Transactional(readOnly = true)
 	public Page<EventResponse> getAllEvents(Pageable pageable) {
 		return eventRepository.findAll(pageable)
-			.map(eventMapper::toResponse);
+				.map(eventMapper::toResponse);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public Page<EventResponse> getEventsByOrganizer(UUID organizerId, Pageable pageable) {
 		return eventRepository.findAllByOrganizerId(organizerId, pageable)
-			.map(eventMapper::toResponse);
+				.map(eventMapper::toResponse);
 	}
 
 	@Override
 	@Transactional
 	public EventResponse updateEvent(UUID eventId, UpdateEventRequest request) {
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		// Verify the current user is the organizer of this event
+		verifyEventOwnership(event);
 
 		if (request.title() != null && request.title().isBlank()) {
 			throw new EventValidationException("Event title cannot be blank.");
@@ -104,7 +108,11 @@ public class EventServiceImpl implements EventService {
 	@Transactional
 	public void deleteEvent(UUID eventId) {
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		// Verify the current user is the organizer of this event
+		verifyEventOwnership(event);
+
 		eventRepository.delete(event);
 	}
 
@@ -163,7 +171,10 @@ public class EventServiceImpl implements EventService {
 	@Transactional
 	public TicketTypeResponse createTicketTypeForEvent(UUID eventId, CreateTicketTypeRequest request) {
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		// Verify the current user is the organizer of this event
+		verifyEventOwnership(event);
 
 		validateNewTicketTypeRequest(request);
 
@@ -183,9 +194,12 @@ public class EventServiceImpl implements EventService {
 	@Override
 	@Transactional
 	public void deleteTicketTypeForEvent(UUID eventId, UUID ticketTypeId) {
-		if (!eventRepository.existsById(eventId)) {
-			throw new EventNotFoundException(eventId);
-		}
+		Event event = eventRepository.findById(eventId)
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		// Verify the current user is the organizer of this event
+		verifyEventOwnership(event);
+
 		TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
 				.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
 
@@ -203,9 +217,12 @@ public class EventServiceImpl implements EventService {
 	@Override
 	@Transactional
 	public TicketTypeResponse patchTicketTypeForEvent(UUID eventId, UUID ticketTypeId, PatchTicketTypeRequest request) {
-		if (!eventRepository.existsById(eventId)) {
-			throw new EventNotFoundException(eventId);
-		}
+		Event event = eventRepository.findById(eventId)
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		// Verify the current user is the organizer of this event
+		verifyEventOwnership(event);
+
 		TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
 				.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
 
@@ -237,7 +254,8 @@ public class EventServiceImpl implements EventService {
 		request.quantity().ifPresent(quantity -> {
 			int soldTickets = ticketType.getTickets().size();
 			if (quantity < soldTickets) {
-				throw new EventValidationException("Quantity cannot be less than the number of tickets already sold (" + soldTickets + ").");
+				throw new EventValidationException(
+						"Quantity cannot be less than the number of tickets already sold (" + soldTickets + ").");
 			}
 			ticketType.setTotalQuantity(quantity);
 		});
@@ -341,5 +359,38 @@ public class EventServiceImpl implements EventService {
 		}
 
 		throw new EventValidationException("Invalid status transition requested.");
+	}
+
+	/**
+	 * Get the current authenticated user's ID from the security context.
+	 * 
+	 * @return the user ID
+	 * @throws IllegalStateException if no authentication is present
+	 */
+	private UUID getCurrentUserId() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			throw new IllegalStateException("No authenticated user found");
+		}
+		Object principal = authentication.getPrincipal();
+		if (principal instanceof UUID) {
+			return (UUID) principal;
+		}
+		throw new IllegalStateException("Invalid principal type: " + principal.getClass());
+	}
+
+	/**
+	 * Verify that the current user is the organizer of the given event.
+	 * 
+	 * @param event the event to check
+	 * @throws UnauthorizedEventAccessException if the user is not the organizer
+	 */
+	private void verifyEventOwnership(Event event) {
+		UUID currentUserId = getCurrentUserId();
+		UUID eventOrganizerId = event.getOrganizer().getId();
+
+		if (!currentUserId.equals(eventOrganizerId)) {
+			throw new UnauthorizedEventAccessException(currentUserId, event.getId());
+		}
 	}
 }
