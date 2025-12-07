@@ -7,6 +7,7 @@ import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.mappers.TicketTypeMapper;
 import com.project.event_ticket_platform.repositories.EventRepository;
+import com.project.event_ticket_platform.repositories.EventStaffRepository;
 import com.project.event_ticket_platform.repositories.TicketRepository;
 import com.project.event_ticket_platform.repositories.TicketTypeRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -25,6 +27,7 @@ public class EventServiceImpl implements EventService {
 
 	private final EventRepository eventRepository;
 	private final UserRepository userRepository;
+	private final EventStaffRepository eventStaffRepository;
 	private final TicketRepository ticketRepository;
 	private final TicketTypeRepository ticketTypeRepository;
 	private final EventMapper eventMapper;
@@ -33,11 +36,13 @@ public class EventServiceImpl implements EventService {
 
 	public EventServiceImpl(
             EventRepository eventRepository,
-            UserRepository userRepository, TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
+            UserRepository userRepository, EventStaffRepository eventStaffRepository,
+            TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
             EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper
     ) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
+		this.eventStaffRepository = eventStaffRepository;
         this.ticketRepository = ticketRepository;
         this.ticketTypeRepository = ticketTypeRepository;
         this.eventMapper = eventMapper;
@@ -341,5 +346,27 @@ public class EventServiceImpl implements EventService {
 		}
 
 		throw new EventValidationException("Invalid status transition requested.");
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public StaffAssignedEventsResponse getAssignedEventsForStaff(UUID staffId) {
+		if (staffId == null) {
+			throw new IllegalArgumentException("Staff ID is required.");
+		}
+
+		User staff = userRepository.findById(staffId)
+			.orElseThrow(() -> new UserNotFoundException(staffId));
+
+		if (staff.getRole() != UserRole.STAFF) {
+			throw new UnauthorizedAccessException("Only staff members can view their assigned events.");
+		}
+
+		List<EventStaff> eventStaffList = eventStaffRepository.findByStaffIdWithEvent(staffId);
+		List<AssignedEventInfo> events = eventStaffList.stream()
+			.map(es -> new AssignedEventInfo(es.getEvent().getId(), es.getEvent().getTitle()))
+			.toList();
+		
+		return new StaffAssignedEventsResponse(events);
 	}
 }
