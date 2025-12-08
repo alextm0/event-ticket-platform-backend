@@ -31,4 +31,6 @@ public interface EventService {
 	void deleteTicketTypeForEvent(UUID eventId, UUID ticketTypeId);
 
 	TicketTypeResponse patchTicketTypeForEvent(UUID eventId, UUID ticketTypeId, PatchTicketTypeRequest request);
+
+	StaffAssignedEventsResponse getAssignedEventsForStaff(UUID staffId);
 }

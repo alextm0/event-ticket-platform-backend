@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springdoc.core.annotations.ParameterObject;
 
 @RestController
@@ -120,5 +122,23 @@ public class EventController {
 			@RequestBody PatchTicketTypeRequest request
 	) {
 		return eventService.patchTicketTypeForEvent(eventId, ticketTypeId, request);
+	}
+
+	@Operation(
+		summary = "Get assigned events for staff member",
+		description = "Retrieve all event IDs where the specified staff member is assigned. Only staff members can access this endpoint.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Assigned events returned successfully"),
+			@ApiResponse(responseCode = "403", description = "User is not a staff member"),
+			@ApiResponse(responseCode = "404", description = "Staff member not found")
+		}
+	)
+	@GetMapping("/staff/{staffId}/assigned-events")
+	public ResponseEntity<StaffAssignedEventsResponse> getAssignedEventsForStaff(
+		@Parameter(description = "Staff member identifier", required = true)
+		@PathVariable UUID staffId
+	) {
+		StaffAssignedEventsResponse response = eventService.getAssignedEventsForStaff(staffId);
+		return ResponseEntity.ok(response);
 	}
 }

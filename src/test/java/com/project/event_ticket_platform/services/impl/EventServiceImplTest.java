@@ -1,11 +1,15 @@
 package com.project.event_ticket_platform.services.impl;
 
+import com.project.event_ticket_platform.dtos.AssignedEventInfo;
 import com.project.event_ticket_platform.dtos.CreateEventRequest;
 import com.project.event_ticket_platform.dtos.CreateTicketTypeRequest;
 import com.project.event_ticket_platform.dtos.EventResponse;
+import com.project.event_ticket_platform.dtos.StaffAssignedEventsResponse;
 import com.project.event_ticket_platform.dtos.TicketTypeResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.entities.Event;
+import com.project.event_ticket_platform.entities.Event;
+import com.project.event_ticket_platform.entities.EventStaff;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.TicketType;
 import com.project.event_ticket_platform.entities.User;
@@ -16,7 +20,10 @@ import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.mappers.TicketTypeMapper;
+import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
+import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import com.project.event_ticket_platform.repositories.EventRepository;
+import com.project.event_ticket_platform.repositories.EventStaffRepository;
 import com.project.event_ticket_platform.repositories.TicketRepository;
 import com.project.event_ticket_platform.repositories.TicketTypeRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
@@ -55,6 +62,9 @@ class EventServiceImplTest {
 	private UserRepository userRepository;
 
 	@Mock
+	private EventStaffRepository eventStaffRepository;
+
+	@Mock
 	private TicketRepository ticketRepository;
 
 	@Mock
@@ -70,7 +80,7 @@ class EventServiceImplTest {
 		EventMapper eventMapper = Mappers.getMapper(EventMapper.class);
 		TicketMapper ticketMapper = Mappers.getMapper(TicketMapper.class);
 		TicketTypeMapper ticketTypeMapper = Mappers.getMapper(TicketTypeMapper.class);
-		eventService = new EventServiceImpl(eventRepository, userRepository, ticketRepository, ticketTypeRepository, eventMapper, ticketMapper, ticketTypeMapper);
+		eventService = new EventServiceImpl(eventRepository, userRepository, eventStaffRepository, ticketRepository, ticketTypeRepository, eventMapper, ticketMapper, ticketTypeMapper);
 
 		organizerId = UUID.randomUUID();
 		organizer = new User();
@@ -379,5 +389,107 @@ class EventServiceImplTest {
 				status
 			);
 		}
+	}
+
+	@Test
+	void shouldGetAssignedEventsForStaff() {
+		UUID staffId = UUID.randomUUID();
+		User staff = new User();
+		staff.setId(staffId);
+		staff.setRole(UserRole.STAFF);
+		staff.setName("Staff Member");
+		staff.setEmail("staff@example.com");
+
+		UUID eventId1 = UUID.randomUUID();
+		UUID eventId2 = UUID.randomUUID();
+		
+		Event event1 = new Event();
+		event1.setId(eventId1);
+		event1.setTitle("Spring Music Festival");
+		
+		Event event2 = new Event();
+		event2.setId(eventId2);
+		event2.setTitle("Summer Tech Conference");
+		
+		EventStaff eventStaff1 = new EventStaff();
+		eventStaff1.setEvent(event1);
+		eventStaff1.setStaff(staff);
+		
+		EventStaff eventStaff2 = new EventStaff();
+		eventStaff2.setEvent(event2);
+		eventStaff2.setStaff(staff);
+
+		when(userRepository.findById(staffId)).thenReturn(Optional.of(staff));
+		when(eventStaffRepository.findByStaffIdWithEvent(staffId)).thenReturn(List.of(eventStaff1, eventStaff2));
+
+		StaffAssignedEventsResponse response = eventService.getAssignedEventsForStaff(staffId);
+
+		assertThat(response.events()).hasSize(2);
+		assertThat(response.events()).extracting(AssignedEventInfo::eventId)
+			.containsExactlyInAnyOrder(eventId1, eventId2);
+		assertThat(response.events()).extracting(AssignedEventInfo::eventName)
+			.containsExactlyInAnyOrder("Spring Music Festival", "Summer Tech Conference");
+		verify(userRepository).findById(staffId);
+		verify(eventStaffRepository).findByStaffIdWithEvent(staffId);
+	}
+
+	@Test
+	void shouldReturnEmptyListWhenStaffHasNoAssignedEvents() {
+		UUID staffId = UUID.randomUUID();
+		User staff = new User();
+		staff.setId(staffId);
+		staff.setRole(UserRole.STAFF);
+		staff.setName("Staff Member");
+		staff.setEmail("staff@example.com");
+
+		when(userRepository.findById(staffId)).thenReturn(Optional.of(staff));
+		when(eventStaffRepository.findByStaffIdWithEvent(staffId)).thenReturn(List.of());
+
+		StaffAssignedEventsResponse response = eventService.getAssignedEventsForStaff(staffId);
+
+		assertThat(response.events()).isEmpty();
+		verify(userRepository).findById(staffId);
+		verify(eventStaffRepository).findByStaffIdWithEvent(staffId);
+	}
+
+	@Test
+	void shouldThrowWhenStaffNotFound() {
+		UUID staffId = UUID.randomUUID();
+		when(userRepository.findById(staffId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> eventService.getAssignedEventsForStaff(staffId))
+			.isInstanceOf(UserNotFoundException.class);
+
+		verify(userRepository).findById(staffId);
+		verify(eventStaffRepository, never()).findByStaffIdWithEvent(any());
+	}
+
+	@Test
+	void shouldThrowWhenUserIsNotStaff() {
+		UUID userId = UUID.randomUUID();
+		User user = new User();
+		user.setId(userId);
+		user.setRole(UserRole.ATTENDEE);
+		user.setName("Attendee");
+		user.setEmail("attendee@example.com");
+
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+		assertThatThrownBy(() -> eventService.getAssignedEventsForStaff(userId))
+			.isInstanceOf(UnauthorizedAccessException.class)
+			.hasMessageContaining("Only staff members");
+
+		verify(userRepository).findById(userId);
+		verify(eventStaffRepository, never()).findByStaffIdWithEvent(any());
+	}
+
+	@Test
+	void shouldThrowWhenStaffIdIsNull() {
+		assertThatThrownBy(() -> eventService.getAssignedEventsForStaff(null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("Staff ID is required");
+
+		verify(userRepository, never()).findById(any());
+		verify(eventStaffRepository, never()).findByStaffIdWithEvent(any());
 	}
 }

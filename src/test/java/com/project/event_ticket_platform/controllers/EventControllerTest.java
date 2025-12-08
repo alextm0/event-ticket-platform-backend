@@ -389,4 +389,42 @@ class EventControllerTest {
 
 		verify(eventService).patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class));
 	}
+
+	@Test
+	void shouldGetAssignedEventsForStaff() throws Exception {
+		UUID staffId = UUID.randomUUID();
+		UUID eventId1 = UUID.randomUUID();
+		UUID eventId2 = UUID.randomUUID();
+		AssignedEventInfo event1 = new AssignedEventInfo(eventId1, "Spring Music Festival");
+		AssignedEventInfo event2 = new AssignedEventInfo(eventId2, "Summer Tech Conference");
+		StaffAssignedEventsResponse response = new StaffAssignedEventsResponse(List.of(event1, event2));
+
+		when(eventService.getAssignedEventsForStaff(staffId)).thenReturn(response);
+
+		mockMvc.perform(get("/api/v1/events/staff/{staffId}/assigned-events", staffId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.events").isArray())
+			.andExpect(jsonPath("$.events[0].eventId").value(eventId1.toString()))
+			.andExpect(jsonPath("$.events[0].eventName").value("Spring Music Festival"))
+			.andExpect(jsonPath("$.events[1].eventId").value(eventId2.toString()))
+			.andExpect(jsonPath("$.events[1].eventName").value("Summer Tech Conference"))
+			.andExpect(jsonPath("$.events.length()").value(2));
+
+		verify(eventService).getAssignedEventsForStaff(staffId);
+	}
+
+	@Test
+	void shouldReturnEmptyListWhenStaffHasNoAssignedEvents() throws Exception {
+		UUID staffId = UUID.randomUUID();
+		StaffAssignedEventsResponse response = new StaffAssignedEventsResponse(List.of());
+
+		when(eventService.getAssignedEventsForStaff(staffId)).thenReturn(response);
+
+		mockMvc.perform(get("/api/v1/events/staff/{staffId}/assigned-events", staffId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.events").isArray())
+			.andExpect(jsonPath("$.events.length()").value(0));
+
+		verify(eventService).getAssignedEventsForStaff(staffId);
+	}
 }
