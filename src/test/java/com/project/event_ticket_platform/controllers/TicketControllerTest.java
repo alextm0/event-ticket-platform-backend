@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
@@ -26,7 +27,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(TicketController.class)
+@WebMvcTest(controllers = TicketController.class, excludeAutoConfiguration = {
+		org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class
+})
+@AutoConfigureMockMvc(addFilters = false)
 class TicketControllerTest {
 
 	@Autowired
@@ -37,6 +41,9 @@ class TicketControllerTest {
 
 	@MockitoBean
 	private TicketService ticketService;
+
+	@MockitoBean
+	private com.project.event_ticket_platform.services.JwtService jwtService;
 
 	private UUID eventId;
 	private UUID ticketTypeId;
@@ -59,31 +66,29 @@ class TicketControllerTest {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
 		TicketResponse ticketResponse = new TicketResponse(
-			ticketId, TicketStatus.PURCHASED, "Event", "Location",
-			Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now()
-		);
+				ticketId, TicketStatus.PURCHASED, "Event", "Location",
+				Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now());
 		PurchaseTicketResponse response = new PurchaseTicketResponse(
-			orderId,
-			BigDecimal.valueOf(300.00),
-			OrderStatus.PAID,
-			List.of(ticketResponse, ticketResponse)
-		);
+				orderId,
+				BigDecimal.valueOf(300.00),
+				OrderStatus.PAID,
+				List.of(ticketResponse, ticketResponse));
 
 		when(ticketService.purchaseTicket(eventId, ticketTypeId, request, userId))
-			.thenReturn(response);
+				.thenReturn(response);
 
 		// Act & Assert
-		mockMvc.perform(post("/api/v1/published-event/{published_event_id}/ticket-types/{ticket_types_id}",
+		mockMvc.perform(post("/api/v1/published-event/{publishedEventId}/ticket-types/{ticketTypeId}",
 				eventId, ticketTypeId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString())
 				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.orderId").value(orderId.toString()))
-			.andExpect(jsonPath("$.totalAmount").value(300.00))
-			.andExpect(jsonPath("$.orderStatus").value("PAID"))
-			.andExpect(jsonPath("$.tickets").isArray())
-			.andExpect(jsonPath("$.tickets.length()").value(2));
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.orderId").value(orderId.toString()))
+				.andExpect(jsonPath("$.totalAmount").value(300.00))
+				.andExpect(jsonPath("$.orderStatus").value("PAID"))
+				.andExpect(jsonPath("$.tickets").isArray())
+				.andExpect(jsonPath("$.tickets.length()").value(2));
 
 		verify(ticketService).purchaseTicket(eventId, ticketTypeId, request, userId);
 	}
@@ -95,13 +100,13 @@ class TicketControllerTest {
 		PurchaseTicketRequest request = new PurchaseTicketRequest(0);
 
 		// Act & Assert
-		mockMvc.perform(post("/api/v1/published-event/{published_event_id}/ticket-types/{ticket_types_id}",
+		mockMvc.perform(post("/api/v1/published-event/{publishedEventId}/ticket-types/{ticketTypeId}",
 				eventId, ticketTypeId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString())
 				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.title").value("Validation failed"));
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.title").value("Validation failed"));
 
 		verify(ticketService, never()).purchaseTicket(any(), any(), any(), any());
 	}
@@ -112,16 +117,16 @@ class TicketControllerTest {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(2);
 		when(ticketService.purchaseTicket(eventId, ticketTypeId, request, userId))
-			.thenThrow(new EventNotFoundException(eventId));
+				.thenThrow(new EventNotFoundException(eventId));
 
 		// Act & Assert
-		mockMvc.perform(post("/api/v1/published-event/{published_event_id}/ticket-types/{ticket_types_id}",
+		mockMvc.perform(post("/api/v1/published-event/{publishedEventId}/ticket-types/{ticketTypeId}",
 				eventId, ticketTypeId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString())
 				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.title").value("Event not found"));
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Event not found"));
 
 		verify(ticketService).purchaseTicket(eventId, ticketTypeId, request, userId);
 	}
@@ -132,16 +137,16 @@ class TicketControllerTest {
 		// Arrange
 		PurchaseTicketRequest request = new PurchaseTicketRequest(100);
 		when(ticketService.purchaseTicket(eventId, ticketTypeId, request, userId))
-			.thenThrow(new InsufficientTicketsException(ticketTypeId, 100, 5));
+				.thenThrow(new InsufficientTicketsException(ticketTypeId, 100, 5));
 
 		// Act & Assert
-		mockMvc.perform(post("/api/v1/published-event/{published_event_id}/ticket-types/{ticket_types_id}",
+		mockMvc.perform(post("/api/v1/published-event/{publishedEventId}/ticket-types/{ticketTypeId}",
 				eventId, ticketTypeId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString())
 				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.title").value("Insufficient tickets available"));
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.title").value("Insufficient tickets available"));
 
 		verify(ticketService).purchaseTicket(eventId, ticketTypeId, request, userId);
 	}
@@ -151,13 +156,11 @@ class TicketControllerTest {
 	void listUserTickets_Success() throws Exception {
 		// Arrange
 		TicketResponse ticket1 = new TicketResponse(
-			UUID.randomUUID(), TicketStatus.PURCHASED, "Event 1", "Location 1",
-			Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now()
-		);
+				UUID.randomUUID(), TicketStatus.PURCHASED, "Event 1", "Location 1",
+				Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now());
 		TicketResponse ticket2 = new TicketResponse(
-			UUID.randomUUID(), TicketStatus.PURCHASED, "Event 2", "Location 2",
-			Instant.now(), "Standard", UUID.randomUUID(), null, Instant.now()
-		);
+				UUID.randomUUID(), TicketStatus.PURCHASED, "Event 2", "Location 2",
+				Instant.now(), "Standard", UUID.randomUUID(), null, Instant.now());
 		List<TicketResponse> tickets = List.of(ticket1, ticket2);
 
 		when(ticketService.listUserTickets(userId)).thenReturn(tickets);
@@ -166,11 +169,11 @@ class TicketControllerTest {
 		mockMvc.perform(get("/api/v1/tickets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$").isArray())
-			.andExpect(jsonPath("$.length()").value(2))
-			.andExpect(jsonPath("$[0].eventTitle").value("Event 1"))
-			.andExpect(jsonPath("$[1].eventTitle").value("Event 2"));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].eventTitle").value("Event 1"))
+				.andExpect(jsonPath("$[1].eventTitle").value("Event 2"));
 
 		verify(ticketService).listUserTickets(userId);
 	}
@@ -185,9 +188,9 @@ class TicketControllerTest {
 		mockMvc.perform(get("/api/v1/tickets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$").isArray())
-			.andExpect(jsonPath("$").isEmpty());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$").isEmpty());
 
 		verify(ticketService).listUserTickets(userId);
 	}
@@ -197,21 +200,20 @@ class TicketControllerTest {
 	void getTicket_Success() throws Exception {
 		// Arrange
 		TicketResponse ticketResponse = new TicketResponse(
-			ticketId, TicketStatus.PURCHASED, "Spring Music Festival", "Central Park",
-			Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now()
-		);
+				ticketId, TicketStatus.PURCHASED, "Spring Music Festival", "Central Park",
+				Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now());
 
 		when(ticketService.getTicketById(ticketId, userId)).thenReturn(ticketResponse);
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/tickets/{ticket_id}", ticketId)
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}", ticketId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.id").value(ticketId.toString()))
-			.andExpect(jsonPath("$.eventTitle").value("Spring Music Festival"))
-			.andExpect(jsonPath("$.ticketTypeName").value("VIP"))
-			.andExpect(jsonPath("$.status").value("PURCHASED"));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ticketId.toString()))
+				.andExpect(jsonPath("$.eventTitle").value("Spring Music Festival"))
+				.andExpect(jsonPath("$.ticketTypeName").value("VIP"))
+				.andExpect(jsonPath("$.status").value("PURCHASED"));
 
 		verify(ticketService).getTicketById(ticketId, userId);
 	}
@@ -221,14 +223,14 @@ class TicketControllerTest {
 	void getTicket_NotFound() throws Exception {
 		// Arrange
 		when(ticketService.getTicketById(ticketId, userId))
-			.thenThrow(new TicketNotFoundException(ticketId));
+				.thenThrow(new TicketNotFoundException(ticketId));
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/tickets/{ticket_id}", ticketId)
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}", ticketId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.title").value("Ticket not found"));
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Ticket not found"));
 
 		verify(ticketService).getTicketById(ticketId, userId);
 	}
@@ -238,14 +240,14 @@ class TicketControllerTest {
 	void getTicket_Unauthorized() throws Exception {
 		// Arrange
 		when(ticketService.getTicketById(ticketId, userId))
-			.thenThrow(new UnauthorizedAccessException("You do not have access to this ticket"));
+				.thenThrow(new UnauthorizedAccessException("You do not have access to this ticket"));
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/tickets/{ticket_id}", ticketId)
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}", ticketId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isForbidden())
-			.andExpect(jsonPath("$.title").value("Unauthorized access"));
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.title").value("Unauthorized access"));
 
 		verify(ticketService).getTicketById(ticketId, userId);
 	}
@@ -256,22 +258,21 @@ class TicketControllerTest {
 		// Arrange
 		UUID qrCodeId = UUID.randomUUID();
 		QrCodeResponse qrCodeResponse = new QrCodeResponse(
-			qrCodeId,
-			"https://api.event-platform.com/qr/" + qrCodeId,
-			QrCodeStatusEnum.ACTIVE,
-			Instant.now()
-		);
+				qrCodeId,
+				"https://api.event-platform.com/qr/" + qrCodeId,
+				QrCodeStatusEnum.ACTIVE,
+				Instant.now());
 
 		when(ticketService.getTicketQrCode(ticketId, userId)).thenReturn(qrCodeResponse);
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/tickets/{ticket_id}/qr-codes", ticketId)
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}/qr-codes", ticketId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.id").value(qrCodeId.toString()))
-			.andExpect(jsonPath("$.codeData").value("https://api.event-platform.com/qr/" + qrCodeId))
-			.andExpect(jsonPath("$.status").value("ACTIVE"));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(qrCodeId.toString()))
+				.andExpect(jsonPath("$.codeData").value("https://api.event-platform.com/qr/" + qrCodeId))
+				.andExpect(jsonPath("$.status").value("ACTIVE"));
 
 		verify(ticketService).getTicketQrCode(ticketId, userId);
 	}
@@ -281,14 +282,14 @@ class TicketControllerTest {
 	void getTicketQrCode_NotFound() throws Exception {
 		// Arrange
 		when(ticketService.getTicketQrCode(ticketId, userId))
-			.thenThrow(new TicketNotFoundException(ticketId));
+				.thenThrow(new TicketNotFoundException(ticketId));
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/tickets/{ticket_id}/qr-codes", ticketId)
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}/qr-codes", ticketId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.title").value("Ticket not found"));
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Ticket not found"));
 
 		verify(ticketService).getTicketQrCode(ticketId, userId);
 	}
@@ -298,16 +299,15 @@ class TicketControllerTest {
 	void getTicketQrCode_Unauthorized() throws Exception {
 		// Arrange
 		when(ticketService.getTicketQrCode(ticketId, userId))
-			.thenThrow(new UnauthorizedAccessException("You do not have access to this ticket"));
+				.thenThrow(new UnauthorizedAccessException("You do not have access to this ticket"));
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/tickets/{ticket_id}/qr-codes", ticketId)
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}/qr-codes", ticketId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.header("X-User-Id", userId.toString()))
-			.andExpect(status().isForbidden())
-			.andExpect(jsonPath("$.title").value("Unauthorized access"));
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.title").value("Unauthorized access"));
 
 		verify(ticketService).getTicketQrCode(ticketId, userId);
 	}
 }
-

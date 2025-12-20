@@ -7,6 +7,7 @@ import com.project.event_ticket_platform.dtos.EventResponse;
 import com.project.event_ticket_platform.dtos.StaffAssignedEventsResponse;
 import com.project.event_ticket_platform.dtos.TicketTypeResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
+import com.project.event_ticket_platform.dtos.UserResponse;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStaff;
@@ -20,6 +21,7 @@ import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import com.project.event_ticket_platform.mappers.EventMapper;
 import com.project.event_ticket_platform.mappers.TicketMapper;
 import com.project.event_ticket_platform.mappers.TicketTypeMapper;
+import com.project.event_ticket_platform.mappers.UserMapper;
 import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
 import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import com.project.event_ticket_platform.repositories.EventRepository;
@@ -80,7 +82,9 @@ class EventServiceImplTest {
 		EventMapper eventMapper = Mappers.getMapper(EventMapper.class);
 		TicketMapper ticketMapper = Mappers.getMapper(TicketMapper.class);
 		TicketTypeMapper ticketTypeMapper = Mappers.getMapper(TicketTypeMapper.class);
-		eventService = new EventServiceImpl(eventRepository, userRepository, eventStaffRepository, ticketRepository, ticketTypeRepository, eventMapper, ticketMapper, ticketTypeMapper);
+		UserMapper userMapper = Mappers.getMapper(UserMapper.class);
+		eventService = new EventServiceImpl(eventRepository, userRepository, eventStaffRepository, ticketRepository,
+				ticketTypeRepository, eventMapper, ticketMapper, ticketTypeMapper, userMapper);
 
 		organizerId = UUID.randomUUID();
 		organizer = new User();
@@ -96,14 +100,13 @@ class EventServiceImplTest {
 		Instant end = start.plusSeconds(3600);
 
 		CreateEventRequest request = new CreateEventRequest(
-			organizerId,
-			"Sample Event",
-			"Description",
-			"Online",
-			start,
-			end,
-			null
-		);
+				organizerId,
+				"Sample Event",
+				"Description",
+				"Online",
+				start,
+				end,
+				null);
 
 		when(userRepository.findById(organizerId)).thenReturn(Optional.of(organizer));
 		when(eventRepository.save(any(Event.class))).thenAnswer(invocation -> {
@@ -131,13 +134,13 @@ class EventServiceImplTest {
 	@Test
 	void shouldThrowWhenOrganizerNotFound() {
 		CreateEventRequest request = validRequestBuilder()
-			.status(EventStatus.PUBLISHED)
-			.build();
+				.status(EventStatus.PUBLISHED)
+				.build();
 
 		when(userRepository.findById(organizerId)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> eventService.createEvent(request))
-			.isInstanceOf(OrganizerNotFoundException.class);
+				.isInstanceOf(OrganizerNotFoundException.class);
 	}
 
 	@Test
@@ -167,19 +170,18 @@ class EventServiceImplTest {
 		Instant end = start.minusSeconds(600);
 
 		CreateEventRequest request = new CreateEventRequest(
-			organizerId,
-			"Invalid Event",
-			"Desc",
-			"Remote",
-			start,
-			end,
-			EventStatus.DRAFT
-		);
+				organizerId,
+				"Invalid Event",
+				"Desc",
+				"Remote",
+				start,
+				end,
+				EventStatus.DRAFT);
 
 		when(userRepository.findById(organizerId)).thenReturn(Optional.of(organizer));
 
 		assertThatThrownBy(() -> eventService.createEvent(request))
-			.isInstanceOf(EventValidationException.class);
+				.isInstanceOf(EventValidationException.class);
 	}
 
 	@Test
@@ -195,13 +197,12 @@ class EventServiceImplTest {
 		Instant start = Instant.now().plusSeconds(3600);
 		Instant end = start.plusSeconds(3600);
 		UpdateEventRequest request = new UpdateEventRequest(
-			"Launch Party",
-			"Desc",
-			"Berlin",
-			start,
-			end,
-			EventStatus.PUBLISHED
-		);
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				start,
+				end,
+				EventStatus.PUBLISHED);
 
 		EventResponse response = eventService.updateEvent(event.getId(), request);
 
@@ -220,16 +221,15 @@ class EventServiceImplTest {
 		when(eventRepository.findById(event.getId())).thenReturn(Optional.of(event));
 
 		UpdateEventRequest request = new UpdateEventRequest(
-			"Launch Party",
-			"Desc",
-			"Berlin",
-			Instant.now().plusSeconds(3600),
-			Instant.now().plusSeconds(7200),
-			EventStatus.PUBLISHED
-		);
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.PUBLISHED);
 
 		assertThatThrownBy(() -> eventService.updateEvent(event.getId(), request))
-			.isInstanceOf(EventValidationException.class);
+				.isInstanceOf(EventValidationException.class);
 	}
 
 	@Test
@@ -243,13 +243,12 @@ class EventServiceImplTest {
 		when(eventRepository.save(event)).thenReturn(event);
 
 		UpdateEventRequest request = new UpdateEventRequest(
-			"Launch Party",
-			"Desc",
-			"Berlin",
-			Instant.now().plusSeconds(3600),
-			Instant.now().plusSeconds(7200),
-			EventStatus.PUBLISHED
-		);
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.PUBLISHED);
 
 		eventService.updateEvent(event.getId(), request);
 
@@ -267,13 +266,12 @@ class EventServiceImplTest {
 		when(eventRepository.save(event)).thenReturn(event);
 
 		UpdateEventRequest request = new UpdateEventRequest(
-			"Launch Party",
-			"Desc",
-			"Berlin",
-			Instant.now().plusSeconds(3600),
-			Instant.now().plusSeconds(7200),
-			EventStatus.CANCELLED
-		);
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.CANCELLED);
 
 		EventResponse response = eventService.updateEvent(event.getId(), request);
 
@@ -287,16 +285,15 @@ class EventServiceImplTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
 		UpdateEventRequest request = new UpdateEventRequest(
-			"Launch Party",
-			"Desc",
-			"Berlin",
-			Instant.now().plusSeconds(3600),
-			Instant.now().plusSeconds(7200),
-			EventStatus.PUBLISHED
-		);
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.PUBLISHED);
 
 		assertThatThrownBy(() -> eventService.updateEvent(eventId, request))
-			.isInstanceOf(EventNotFoundException.class);
+				.isInstanceOf(EventNotFoundException.class);
 	}
 
 	@Test
@@ -329,8 +326,7 @@ class EventServiceImplTest {
 				"Front row access",
 				new BigDecimal("120.00"),
 				80,
-				true
-		);
+				true);
 
 		TicketTypeResponse response = eventService.createTicketTypeForEvent(eventId, request);
 
@@ -355,7 +351,7 @@ class EventServiceImplTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> eventService.deleteEvent(eventId))
-			.isInstanceOf(EventNotFoundException.class);
+				.isInstanceOf(EventNotFoundException.class);
 
 		verify(eventRepository, never()).delete(any());
 	}
@@ -380,14 +376,13 @@ class EventServiceImplTest {
 
 		CreateEventRequest build() {
 			return new CreateEventRequest(
-				organizerId,
-				title,
-				description,
-				location,
-				start,
-				end,
-				status
-			);
+					organizerId,
+					title,
+					description,
+					location,
+					start,
+					end,
+					status);
 		}
 	}
 
@@ -402,19 +397,19 @@ class EventServiceImplTest {
 
 		UUID eventId1 = UUID.randomUUID();
 		UUID eventId2 = UUID.randomUUID();
-		
+
 		Event event1 = new Event();
 		event1.setId(eventId1);
 		event1.setTitle("Spring Music Festival");
-		
+
 		Event event2 = new Event();
 		event2.setId(eventId2);
 		event2.setTitle("Summer Tech Conference");
-		
+
 		EventStaff eventStaff1 = new EventStaff();
 		eventStaff1.setEvent(event1);
 		eventStaff1.setStaff(staff);
-		
+
 		EventStaff eventStaff2 = new EventStaff();
 		eventStaff2.setEvent(event2);
 		eventStaff2.setStaff(staff);
@@ -426,9 +421,9 @@ class EventServiceImplTest {
 
 		assertThat(response.events()).hasSize(2);
 		assertThat(response.events()).extracting(AssignedEventInfo::eventId)
-			.containsExactlyInAnyOrder(eventId1, eventId2);
+				.containsExactlyInAnyOrder(eventId1, eventId2);
 		assertThat(response.events()).extracting(AssignedEventInfo::eventName)
-			.containsExactlyInAnyOrder("Spring Music Festival", "Summer Tech Conference");
+				.containsExactlyInAnyOrder("Spring Music Festival", "Summer Tech Conference");
 		verify(userRepository).findById(staffId);
 		verify(eventStaffRepository).findByStaffIdWithEvent(staffId);
 	}
@@ -458,7 +453,7 @@ class EventServiceImplTest {
 		when(userRepository.findById(staffId)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> eventService.getAssignedEventsForStaff(staffId))
-			.isInstanceOf(UserNotFoundException.class);
+				.isInstanceOf(UserNotFoundException.class);
 
 		verify(userRepository).findById(staffId);
 		verify(eventStaffRepository, never()).findByStaffIdWithEvent(any());
@@ -476,8 +471,8 @@ class EventServiceImplTest {
 		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> eventService.getAssignedEventsForStaff(userId))
-			.isInstanceOf(UnauthorizedAccessException.class)
-			.hasMessageContaining("Only staff members");
+				.isInstanceOf(UnauthorizedAccessException.class)
+				.hasMessageContaining("Only staff members");
 
 		verify(userRepository).findById(userId);
 		verify(eventStaffRepository, never()).findByStaffIdWithEvent(any());
@@ -486,10 +481,103 @@ class EventServiceImplTest {
 	@Test
 	void shouldThrowWhenStaffIdIsNull() {
 		assertThatThrownBy(() -> eventService.getAssignedEventsForStaff(null))
-			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessageContaining("Staff ID is required");
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Staff ID is required");
 
 		verify(userRepository, never()).findById(any());
 		verify(eventStaffRepository, never()).findByStaffIdWithEvent(any());
+	}
+
+	@Test
+	void shouldAssignStaffToEvent() {
+		UUID eventId = UUID.randomUUID();
+		UUID staffId = UUID.randomUUID();
+		Event event = new Event();
+		event.setId(eventId);
+
+		User staff = new User();
+		staff.setId(staffId);
+		staff.setRole(UserRole.STAFF);
+
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(userRepository.findById(staffId)).thenReturn(Optional.of(staff));
+		when(eventStaffRepository.existsByEventIdAndStaffId(eventId, staffId)).thenReturn(false);
+
+		eventService.assignStaffToEvent(eventId, staffId);
+
+		verify(eventStaffRepository).save(any(EventStaff.class));
+	}
+
+	@Test
+	void shouldNotAssignStaffWhenAlreadyAssigned() {
+		UUID eventId = UUID.randomUUID();
+		UUID staffId = UUID.randomUUID();
+		Event event = new Event();
+		event.setId(eventId);
+
+		User staff = new User();
+		staff.setId(staffId);
+		staff.setRole(UserRole.STAFF);
+
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(userRepository.findById(staffId)).thenReturn(Optional.of(staff));
+		when(eventStaffRepository.existsByEventIdAndStaffId(eventId, staffId)).thenReturn(true);
+
+		eventService.assignStaffToEvent(eventId, staffId);
+
+		verify(eventStaffRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldThrowWhenAssigningNonStaffUser() {
+		UUID eventId = UUID.randomUUID();
+		UUID attendeeId = UUID.randomUUID();
+		Event event = new Event();
+		event.setId(eventId);
+
+		User attendee = new User();
+		attendee.setId(attendeeId);
+		attendee.setRole(UserRole.ATTENDEE);
+
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(userRepository.findById(attendeeId)).thenReturn(Optional.of(attendee));
+
+		assertThatThrownBy(() -> eventService.assignStaffToEvent(eventId, attendeeId))
+				.isInstanceOf(UnauthorizedAccessException.class)
+				.hasMessageContaining("Only users with role STAFF");
+	}
+
+	@Test
+	void shouldRemoveStaffFromEvent() {
+		UUID eventId = UUID.randomUUID();
+		UUID staffId = UUID.randomUUID();
+
+		when(eventRepository.existsById(eventId)).thenReturn(true);
+		when(userRepository.existsById(staffId)).thenReturn(true);
+
+		eventService.removeStaffFromEvent(eventId, staffId);
+
+		verify(eventStaffRepository).deleteByEventIdAndStaffId(eventId, staffId);
+	}
+
+	@Test
+	void shouldGetEventStaff() {
+		UUID eventId = UUID.randomUUID();
+		User staff = new User();
+		staff.setId(UUID.randomUUID());
+		staff.setName("Staff Name");
+		staff.setRole(UserRole.STAFF);
+
+		EventStaff assignment = new EventStaff();
+		assignment.setStaff(staff);
+
+		when(eventRepository.existsById(eventId)).thenReturn(true);
+		when(eventStaffRepository.findByEventIdWithStaff(eventId)).thenReturn(List.of(assignment));
+
+		List<UserResponse> result = eventService.getEventStaff(eventId);
+
+		assertThat(result).hasSize(1);
+		assertThat(result.get(0).name()).isEqualTo("Staff Name");
+		verify(eventStaffRepository).findByEventIdWithStaff(eventId);
 	}
 }

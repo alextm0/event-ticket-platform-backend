@@ -3,6 +3,7 @@ package com.project.event_ticket_platform.services;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,19 +15,17 @@ import java.util.Date;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
-	private final SecretKey secretKey;
-	private final long expirationHours;
+	@Value("${jwt.secret:your-256-bit-secret-key-that-should-be-changed-in-production-environment-please-use-a-strong-secret-key}")
+	private String secret;
 
-	public JwtService(
-		@Value("${jwt.secret:your-256-bit-secret-key-that-should-be-changed-in-production-environment-please-use-a-strong-secret-key}")
-		String secret,
-		@Value("${jwt.expiration-hours:24}")
-		long expirationHours
-	) {
-		this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-		this.expirationHours = expirationHours;
+	@Value("${jwt.expiration-hours:24}")
+	private long expirationHours;
+
+	private SecretKey getSigningKey() {
+		return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 	}
 
 	public String generateToken(UUID userId, String email, String role) {
@@ -34,26 +33,31 @@ public class JwtService {
 		Instant expiration = now.plus(expirationHours, ChronoUnit.HOURS);
 
 		return Jwts.builder()
-			.subject(userId.toString())
-			.claim("email", email)
-			.claim("role", role)
-			.issuedAt(Date.from(now))
-			.expiration(Date.from(expiration))
-			.signWith(secretKey)
-			.compact();
+				.subject(userId.toString())
+				.claim("email", email)
+				.claim("role", role)
+				.issuedAt(Date.from(now))
+				.expiration(Date.from(expiration))
+				.signWith(getSigningKey())
+				.compact();
 	}
 
 	public Claims parseToken(String token) {
 		return Jwts.parser()
-			.verifyWith(secretKey)
-			.build()
-			.parseSignedClaims(token)
-			.getPayload();
+				.verifyWith(getSigningKey())
+				.build()
+				.parseSignedClaims(token)
+				.getPayload();
 	}
 
-	public UUID getUserIdFromToken(String token) {
+	public UUID extractUserId(String token) {
 		Claims claims = parseToken(token);
 		return UUID.fromString(claims.getSubject());
+	}
+
+	public String extractRole(String token) {
+		Claims claims = parseToken(token);
+		return claims.get("role", String.class);
 	}
 
 	public boolean isTokenValid(String token) {
@@ -65,4 +69,3 @@ public class JwtService {
 		}
 	}
 }
-

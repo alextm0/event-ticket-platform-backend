@@ -9,8 +9,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -26,14 +27,20 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(PublishedEventController.class)
+@WebMvcTest(controllers = PublishedEventController.class, excludeAutoConfiguration = {
+		org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class
+})
+@AutoConfigureMockMvc(addFilters = false)
 class PublishedEventControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
-	@MockBean
+	@MockitoBean
 	private PublishedEventService publishedEventService;
+
+	@MockitoBean
+	private com.project.event_ticket_platform.services.JwtService jwtService;
 
 	private PublishedEventResponse publishedEventResponse;
 	private UUID eventId;
@@ -42,16 +49,15 @@ class PublishedEventControllerTest {
 	void setUp() {
 		eventId = UUID.randomUUID();
 		publishedEventResponse = new PublishedEventResponse(
-			eventId,
-			"Spring Music Festival",
-			"Amazing music festival",
-			"Central Park",
-			Instant.now().plusSeconds(86400),
-			Instant.now().plusSeconds(172800),
-			EventStatus.PUBLISHED,
-			"John Doe",
-			new ArrayList<>()
-		);
+				eventId,
+				"Spring Music Festival",
+				"Amazing music festival",
+				"Central Park",
+				Instant.now().plusSeconds(86400),
+				Instant.now().plusSeconds(172800),
+				EventStatus.PUBLISHED,
+				"John Doe",
+				new ArrayList<>());
 	}
 
 	@Test
@@ -59,10 +65,9 @@ class PublishedEventControllerTest {
 	void listPublishedEvents_Success() throws Exception {
 		// Arrange
 		Page<PublishedEventResponse> eventPage = new PageImpl<>(
-			List.of(publishedEventResponse),
-			PageRequest.of(0, 20),
-			1
-		);
+				List.of(publishedEventResponse),
+				PageRequest.of(0, 20),
+				1);
 		when(publishedEventService.listPublishedEvents(0, 20)).thenReturn(eventPage);
 
 		// Act & Assert
@@ -70,14 +75,14 @@ class PublishedEventControllerTest {
 				.param("page", "0")
 				.param("size", "20")
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.content").isArray())
-			.andExpect(jsonPath("$.content[0].id").value(eventId.toString()))
-			.andExpect(jsonPath("$.content[0].title").value("Spring Music Festival"))
-			.andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
-			.andExpect(jsonPath("$.totalElements").value(1))
-			.andExpect(jsonPath("$.number").value(0))
-			.andExpect(jsonPath("$.size").value(20));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.content[0].id").value(eventId.toString()))
+				.andExpect(jsonPath("$.content[0].title").value("Spring Music Festival"))
+				.andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.size").value(20));
 
 		verify(publishedEventService).listPublishedEvents(0, 20);
 	}
@@ -87,10 +92,9 @@ class PublishedEventControllerTest {
 	void listPublishedEvents_EmptyList() throws Exception {
 		// Arrange
 		Page<PublishedEventResponse> emptyPage = new PageImpl<>(
-			new ArrayList<>(),
-			PageRequest.of(0, 20),
-			0
-		);
+				new ArrayList<>(),
+				PageRequest.of(0, 20),
+				0);
 		when(publishedEventService.listPublishedEvents(0, 20)).thenReturn(emptyPage);
 
 		// Act & Assert
@@ -98,10 +102,10 @@ class PublishedEventControllerTest {
 				.param("page", "0")
 				.param("size", "20")
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.content").isArray())
-			.andExpect(jsonPath("$.content").isEmpty())
-			.andExpect(jsonPath("$.totalElements").value(0));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.content").isEmpty())
+				.andExpect(jsonPath("$.totalElements").value(0));
 
 		verify(publishedEventService).listPublishedEvents(0, 20);
 	}
@@ -111,19 +115,18 @@ class PublishedEventControllerTest {
 	void listPublishedEvents_DefaultPagination() throws Exception {
 		// Arrange
 		Page<PublishedEventResponse> eventPage = new PageImpl<>(
-			List.of(publishedEventResponse),
-			PageRequest.of(0, 20),
-			1
-		);
+				List.of(publishedEventResponse),
+				PageRequest.of(0, 20),
+				1);
 		when(publishedEventService.listPublishedEvents(0, 20)).thenReturn(eventPage);
 
 		// Act & Assert
 		mockMvc.perform(get("/api/v1/published-events")
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.content").isArray())
-			.andExpect(jsonPath("$.number").value(0))
-			.andExpect(jsonPath("$.size").value(20));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.size").value(20));
 
 		verify(publishedEventService).listPublishedEvents(0, 20);
 	}
@@ -135,14 +138,14 @@ class PublishedEventControllerTest {
 		when(publishedEventService.getPublishedEventById(eventId)).thenReturn(publishedEventResponse);
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/published-event/{published_event_id}", eventId)
+		mockMvc.perform(get("/api/v1/published-event/{publishedEventId}", eventId)
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.id").value(eventId.toString()))
-			.andExpect(jsonPath("$.title").value("Spring Music Festival"))
-			.andExpect(jsonPath("$.location").value("Central Park"))
-			.andExpect(jsonPath("$.status").value("PUBLISHED"))
-			.andExpect(jsonPath("$.organizerName").value("John Doe"));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(eventId.toString()))
+				.andExpect(jsonPath("$.title").value("Spring Music Festival"))
+				.andExpect(jsonPath("$.location").value("Central Park"))
+				.andExpect(jsonPath("$.status").value("PUBLISHED"))
+				.andExpect(jsonPath("$.organizerName").value("John Doe"));
 
 		verify(publishedEventService).getPublishedEventById(eventId);
 	}
@@ -152,13 +155,13 @@ class PublishedEventControllerTest {
 	void getPublishedEvent_NotFound() throws Exception {
 		// Arrange
 		when(publishedEventService.getPublishedEventById(eventId))
-			.thenThrow(new EventNotFoundException(eventId));
+				.thenThrow(new EventNotFoundException(eventId));
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/published-event/{published_event_id}", eventId)
+		mockMvc.perform(get("/api/v1/published-event/{publishedEventId}", eventId)
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.title").value("Event not found"));
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Event not found"));
 
 		verify(publishedEventService).getPublishedEventById(eventId);
 	}
@@ -168,15 +171,14 @@ class PublishedEventControllerTest {
 	void getPublishedEvent_NotPublished() throws Exception {
 		// Arrange
 		when(publishedEventService.getPublishedEventById(eventId))
-			.thenThrow(new EventNotPublishedException(eventId));
+				.thenThrow(new EventNotPublishedException(eventId));
 
 		// Act & Assert
-		mockMvc.perform(get("/api/v1/published-event/{published_event_id}", eventId)
+		mockMvc.perform(get("/api/v1/published-event/{publishedEventId}", eventId)
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.title").value("Event not published"));
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.title").value("Event not published"));
 
 		verify(publishedEventService).getPublishedEventById(eventId);
 	}
 }
-

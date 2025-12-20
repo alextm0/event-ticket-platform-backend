@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -34,16 +36,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = EventController.class)
-@Import(EventControllerTest.TestConfig.class)
-@TestPropertySource(properties = "app.jpa.auditing.enabled=false")
+import com.project.event_ticket_platform.config.SecurityConfig;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+
+@WebMvcTest(controllers = EventController.class, excludeAutoConfiguration = {
+		org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class
+}, excludeFilters = {
+		@ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SecurityConfig.class)
+})
+@AutoConfigureMockMvc(addFilters = false)
+@TestPropertySource(properties = {
+		"app.jpa.auditing.enabled=false"
+})
 class EventControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired
+	@MockitoBean
 	private EventService eventService;
+
+	@MockitoBean
+	private com.project.event_ticket_platform.services.JwtService jwtService;
 
 	@Test
 	void shouldCreateEvent() throws Exception {
@@ -55,38 +70,37 @@ class EventControllerTest {
 		Instant now = Instant.now();
 
 		EventResponse response = new EventResponse(
-			eventId,
-			organizerId,
-			"Launch Party",
-			"Celebrate product launch",
-			"Berlin",
-			start,
-			end,
-			EventStatus.PUBLISHED,
-			now,
-			now
-		);
+				eventId,
+				organizerId,
+				"Launch Party",
+				"Celebrate product launch",
+				"Berlin",
+				start,
+				end,
+				EventStatus.PUBLISHED,
+				now,
+				now);
 
 		when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(response);
 
 		mockMvc.perform(post("/api/v1/events")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-					{
-						"organizerId": "%s",
-						"title": "Launch Party",
-						"description": "Celebrate product launch",
-						"location": "Berlin",
-						"startTime": "%s",
-						"endTime": "%s",
-						"status": "PUBLISHED"
-					}
-					""".formatted(organizerId, start.toString(), end.toString())))
-			.andExpect(status().isCreated())
-			.andExpect(header().string("Location", "/api/v1/events/" + eventId))
-			.andExpect(jsonPath("$.id").value(eventId.toString()))
-			.andExpect(jsonPath("$.title").value("Launch Party"))
-			.andExpect(jsonPath("$.status").value("PUBLISHED"));
+						{
+							"organizerId": "%s",
+							"title": "Launch Party",
+							"description": "Celebrate product launch",
+							"location": "Berlin",
+							"startTime": "%s",
+							"endTime": "%s",
+							"status": "PUBLISHED"
+						}
+						""".formatted(organizerId, start.toString(), end.toString())))
+				.andExpect(status().isCreated())
+				.andExpect(header().string("Location", "/api/v1/events/" + eventId))
+				.andExpect(jsonPath("$.id").value(eventId.toString()))
+				.andExpect(jsonPath("$.title").value("Launch Party"))
+				.andExpect(jsonPath("$.status").value("PUBLISHED"));
 
 		ArgumentCaptor<CreateEventRequest> captor = ArgumentCaptor.forClass(CreateEventRequest.class);
 		verify(eventService).createEvent(captor.capture());
@@ -97,74 +111,149 @@ class EventControllerTest {
 	}
 
 	@Test
+	void shouldGetEventById() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		EventResponse response = new EventResponse(
+				eventId,
+				UUID.randomUUID(),
+				"Event Details",
+				"Description",
+				"Location",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.DRAFT,
+				Instant.now(),
+				Instant.now());
+
+		when(eventService.getEventById(eventId)).thenReturn(response);
+
+		mockMvc.perform(get("/api/v1/events/{eventId}", eventId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(eventId.toString()))
+				.andExpect(jsonPath("$.title").value("Event Details"))
+				.andExpect(jsonPath("$.status").value("DRAFT"));
+
+		verify(eventService).getEventById(eventId);
+	}
+
+	@Test
 	void shouldListEvents() throws Exception {
 		EventResponse response = new EventResponse(
-			UUID.randomUUID(),
-			UUID.randomUUID(),
-			"Conference",
-			"Industry conference",
-			"Remote",
-			Instant.parse("2025-09-01T09:00:00Z"),
-			Instant.parse("2025-09-01T17:00:00Z"),
-			EventStatus.PUBLISHED,
-			Instant.now(),
-			Instant.now()
-		);
+				UUID.randomUUID(),
+				UUID.randomUUID(),
+				"Conference",
+				"Industry conference",
+				"Remote",
+				Instant.parse("2025-09-01T09:00:00Z"),
+				Instant.parse("2025-09-01T17:00:00Z"),
+				EventStatus.PUBLISHED,
+				Instant.now(),
+				Instant.now());
 
 		Page<EventResponse> page = new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1);
 
 		when(eventService.getAllEvents(any(Pageable.class))).thenReturn(page);
 
 		mockMvc.perform(get("/api/v1/events").param("page", "0").param("size", "20"))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.content[0].title").value("Conference"))
-			.andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
-			.andExpect(jsonPath("$.size").value(20))
-			.andExpect(jsonPath("$.number").value(0))
-			.andExpect(jsonPath("$.totalElements").value(1));
-	}
-
-	@TestConfiguration
-	static class TestConfig {
-
-		@Bean
-		EventService eventService() {
-			return Mockito.mock(EventService.class);
-		}
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].title").value("Conference"))
+				.andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
+				.andExpect(jsonPath("$.size").value(20))
+				.andExpect(jsonPath("$.number").value(0))
+				.andExpect(jsonPath("$.totalElements").value(1));
 	}
 
 	@Test
 	void shouldPublishEvent() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		EventResponse response = new EventResponse(
-			eventId,
-			UUID.randomUUID(),
-			"Launch Party",
-			"Desc",
-			"Berlin",
-			Instant.now().plusSeconds(3600),
-			Instant.now().plusSeconds(7200),
-			EventStatus.PUBLISHED,
-			Instant.now(),
-			Instant.now()
-		);
+				eventId,
+				UUID.randomUUID(),
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.PUBLISHED,
+				Instant.now(),
+				Instant.now());
 
 		when(eventService.updateEvent(any(UUID.class), any())).thenReturn(response);
 
 		mockMvc.perform(put("/api/v1/events/{eventId}", eventId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-					{
-						"title": "Launch Party",
-						"description": "Desc",
-						"location": "Berlin",
-						"startTime": "%s",
-						"endTime": "%s",
-						"status": "PUBLISHED"
-					}
-					""".formatted(response.startTime().toString(), response.endTime().toString())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("PUBLISHED"));
+						{
+							"title": "Launch Party",
+							"description": "Desc",
+							"location": "Berlin",
+							"startTime": "%s",
+							"endTime": "%s",
+							"status": "PUBLISHED"
+						}
+						""".formatted(response.startTime().toString(), response.endTime().toString())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+		verify(eventService).updateEvent(any(UUID.class), any());
+	}
+
+	@Test
+	void shouldUnpublishEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		EventResponse response = new EventResponse(
+				eventId,
+				UUID.randomUUID(),
+				"Launch Party",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.DRAFT,
+				Instant.now(),
+				Instant.now());
+
+		when(eventService.updateEvent(any(UUID.class), any())).thenReturn(response);
+
+		mockMvc.perform(put("/api/v1/events/{eventId}", eventId)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+							"status": "DRAFT"
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("DRAFT"));
+
+		verify(eventService).updateEvent(any(UUID.class), any());
+	}
+
+	@Test
+	void shouldPatchEvent() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		EventResponse response = new EventResponse(
+				eventId,
+				UUID.randomUUID(),
+				"Updated Title",
+				"Desc",
+				"Berlin",
+				Instant.now().plusSeconds(3600),
+				Instant.now().plusSeconds(7200),
+				EventStatus.PUBLISHED,
+				Instant.now(),
+				Instant.now());
+
+		when(eventService.updateEvent(any(UUID.class), any())).thenReturn(response);
+
+		mockMvc.perform(patch("/api/v1/events/{eventId}", eventId)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+							"title": "Updated Title"
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.title").value("Updated Title"));
 
 		verify(eventService).updateEvent(any(UUID.class), any());
 	}
@@ -174,7 +263,7 @@ class EventControllerTest {
 		UUID eventId = UUID.randomUUID();
 
 		mockMvc.perform(delete("/api/v1/events/{eventId}", eventId))
-			.andExpect(status().isNoContent());
+				.andExpect(status().isNoContent());
 
 		verify(eventService).deleteEvent(eventId);
 	}
@@ -192,16 +281,15 @@ class EventControllerTest {
 				UUID.randomUUID(),
 				"John Doe",
 				1,
-				purchaseDate
-		);
+				purchaseDate);
 
 		Page<EventTicketSaleResponse> page = new PageImpl<>(List.of(ticketSale), PageRequest.of(0, 10), 1);
 
 		when(eventService.getTicketSalesForEvent(any(UUID.class), any(Pageable.class))).thenReturn(page);
 
 		mockMvc.perform(get("/api/v1/events/{eventId}/tickets", eventId)
-						.param("page", "0")
-						.param("size", "10"))
+				.param("page", "0")
+				.param("size", "10"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.content[0].id").value(ticketSale.id().toString()))
 				.andExpect(jsonPath("$.content[0].ticketTypeName").value("VIP"))
@@ -227,8 +315,7 @@ class EventControllerTest {
 				UUID.randomUUID(),
 				"John Doe",
 				1,
-				purchaseDate
-		);
+				purchaseDate);
 
 		when(eventService.getTicketSaleForEvent(eventId, ticketId)).thenReturn(ticketSale);
 
@@ -253,16 +340,15 @@ class EventControllerTest {
 				100,
 				40,
 				60,
-				true
-		);
+				true);
 
 		Page<TicketTypeResponse> page = new PageImpl<>(List.of(ticketType), PageRequest.of(0, 10), 1);
 
 		when(eventService.getTicketTypesForEvent(eq(eventId), any(Pageable.class))).thenReturn(page);
 
 		mockMvc.perform(get("/api/v1/events/{eventId}/ticket-types", eventId)
-						.param("page", "0")
-						.param("size", "10"))
+				.param("page", "0")
+				.param("size", "10"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.content[0].id").value(ticketType.id().toString()))
 				.andExpect(jsonPath("$.content[0].name").value("Standard"))
@@ -287,8 +373,7 @@ class EventControllerTest {
 				50,
 				25,
 				25,
-				true
-		);
+				true);
 
 		when(eventService.getTicketTypeForEvent(eventId, ticketTypeId)).thenReturn(ticketType);
 
@@ -316,22 +401,22 @@ class EventControllerTest {
 				50,
 				0,
 				50,
-				true
-		);
+				true);
 
-		when(eventService.createTicketTypeForEvent(eq(eventId), any(CreateTicketTypeRequest.class))).thenReturn(response);
+		when(eventService.createTicketTypeForEvent(eq(eventId), any(CreateTicketTypeRequest.class)))
+				.thenReturn(response);
 
 		mockMvc.perform(post("/api/v1/events/{eventId}/ticket-types", eventId)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{
-								  "name": "VIP",
-								  "description": "VIP access",
-								  "price": 150.00,
-								  "totalQuantity": 50,
-								  "active": true
-								}
-								"""))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "VIP",
+						  "description": "VIP access",
+						  "price": 150.00,
+						  "totalQuantity": 50,
+						  "active": true
+						}
+						"""))
 				.andExpect(status().isCreated())
 				.andExpect(header().string("Location", "/api/v1/events/" + eventId + "/ticket-types/" + ticketTypeId))
 				.andExpect(jsonPath("$.id").value(ticketTypeId.toString()))
@@ -366,21 +451,20 @@ class EventControllerTest {
 				75,
 				50,
 				25,
-				true
-		);
+				true);
 
 		when(eventService.patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class)))
 				.thenReturn(response);
 
 		mockMvc.perform(patch("/api/v1/events/{eventId}/ticket-types/{ticketTypeId}", eventId, ticketTypeId)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-                                 {
-                                   "name": "VIP Silver",
-                                   "price": 200.00,
-                                   "quantity": 25
-                                 }
-                                 """))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "VIP Silver",
+						  "price": 200.00,
+						  "quantity": 25
+						}
+						"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(ticketTypeId.toString()))
 				.andExpect(jsonPath("$.name").value("VIP Silver"))
@@ -402,13 +486,13 @@ class EventControllerTest {
 		when(eventService.getAssignedEventsForStaff(staffId)).thenReturn(response);
 
 		mockMvc.perform(get("/api/v1/events/staff/{staffId}/assigned-events", staffId))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.events").isArray())
-			.andExpect(jsonPath("$.events[0].eventId").value(eventId1.toString()))
-			.andExpect(jsonPath("$.events[0].eventName").value("Spring Music Festival"))
-			.andExpect(jsonPath("$.events[1].eventId").value(eventId2.toString()))
-			.andExpect(jsonPath("$.events[1].eventName").value("Summer Tech Conference"))
-			.andExpect(jsonPath("$.events.length()").value(2));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.events").isArray())
+				.andExpect(jsonPath("$.events[0].eventId").value(eventId1.toString()))
+				.andExpect(jsonPath("$.events[0].eventName").value("Spring Music Festival"))
+				.andExpect(jsonPath("$.events[1].eventId").value(eventId2.toString()))
+				.andExpect(jsonPath("$.events[1].eventName").value("Summer Tech Conference"))
+				.andExpect(jsonPath("$.events.length()").value(2));
 
 		verify(eventService).getAssignedEventsForStaff(staffId);
 	}
@@ -421,9 +505,9 @@ class EventControllerTest {
 		when(eventService.getAssignedEventsForStaff(staffId)).thenReturn(response);
 
 		mockMvc.perform(get("/api/v1/events/staff/{staffId}/assigned-events", staffId))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.events").isArray())
-			.andExpect(jsonPath("$.events.length()").value(0));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.events").isArray())
+				.andExpect(jsonPath("$.events.length()").value(0));
 
 		verify(eventService).getAssignedEventsForStaff(staffId);
 	}

@@ -17,4 +17,9 @@ public interface EventStaffRepository extends JpaRepository<EventStaff, UUID> {
 
 	@Query("SELECT es FROM EventStaff es JOIN FETCH es.event WHERE es.staff.id = :staffId")
 	List<EventStaff> findByStaffIdWithEvent(@Param("staffId") UUID staffId);
+
+	void deleteByEventIdAndStaffId(UUID eventId, UUID staffId);
+
+	@Query("SELECT es FROM EventStaff es JOIN FETCH es.staff WHERE es.event.id = :eventId")
+	List<EventStaff> findByEventIdWithStaff(@Param("eventId") UUID eventId);
 }

@@ -11,6 +11,7 @@ import com.project.event_ticket_platform.repositories.EventStaffRepository;
 import com.project.event_ticket_platform.repositories.TicketRepository;
 import com.project.event_ticket_platform.repositories.TicketTypeRepository;
 import com.project.event_ticket_platform.repositories.UserRepository;
+import com.project.event_ticket_platform.mappers.UserMapper;
 import com.project.event_ticket_platform.services.EventService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,28 +34,30 @@ public class EventServiceImpl implements EventService {
 	private final EventMapper eventMapper;
 	private final TicketMapper ticketMapper;
 	private final TicketTypeMapper ticketTypeMapper;
+	private final UserMapper userMapper;
 
 	public EventServiceImpl(
-            EventRepository eventRepository,
-            UserRepository userRepository, EventStaffRepository eventStaffRepository,
-            TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
-            EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper
-    ) {
+			EventRepository eventRepository,
+			UserRepository userRepository, EventStaffRepository eventStaffRepository,
+			TicketRepository ticketRepository, TicketTypeRepository ticketTypeRepository,
+			EventMapper eventMapper, TicketMapper ticketMapper, TicketTypeMapper ticketTypeMapper,
+			UserMapper userMapper) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.eventStaffRepository = eventStaffRepository;
-        this.ticketRepository = ticketRepository;
-        this.ticketTypeRepository = ticketTypeRepository;
-        this.eventMapper = eventMapper;
-        this.ticketMapper = ticketMapper;
-        this.ticketTypeMapper = ticketTypeMapper;
-    }
+		this.ticketRepository = ticketRepository;
+		this.ticketTypeRepository = ticketTypeRepository;
+		this.eventMapper = eventMapper;
+		this.ticketMapper = ticketMapper;
+		this.ticketTypeMapper = ticketTypeMapper;
+		this.userMapper = userMapper;
+	}
 
 	@Override
 	@Transactional
 	public EventResponse createEvent(CreateEventRequest request) {
 		User organizer = userRepository.findById(request.organizerId())
-			.orElseThrow(() -> new OrganizerNotFoundException(request.organizerId()));
+				.orElseThrow(() -> new OrganizerNotFoundException(request.organizerId()));
 
 		Event event = eventMapper.toEntity(request);
 		event.setOrganizer(organizer);
@@ -65,23 +68,31 @@ public class EventServiceImpl implements EventService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public EventResponse getEventById(UUID eventId) {
+		return eventRepository.findById(eventId)
+				.map(eventMapper::toResponse)
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public Page<EventResponse> getAllEvents(Pageable pageable) {
 		return eventRepository.findAll(pageable)
-			.map(eventMapper::toResponse);
+				.map(eventMapper::toResponse);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public Page<EventResponse> getEventsByOrganizer(UUID organizerId, Pageable pageable) {
 		return eventRepository.findAllByOrganizerId(organizerId, pageable)
-			.map(eventMapper::toResponse);
+				.map(eventMapper::toResponse);
 	}
 
 	@Override
 	@Transactional
 	public EventResponse updateEvent(UUID eventId, UpdateEventRequest request) {
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
 
 		if (request.title() != null && request.title().isBlank()) {
 			throw new EventValidationException("Event title cannot be blank.");
@@ -109,7 +120,7 @@ public class EventServiceImpl implements EventService {
 	@Transactional
 	public void deleteEvent(UUID eventId) {
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
 		eventRepository.delete(event);
 	}
 
@@ -168,7 +179,7 @@ public class EventServiceImpl implements EventService {
 	@Transactional
 	public TicketTypeResponse createTicketTypeForEvent(UUID eventId, CreateTicketTypeRequest request) {
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
 
 		validateNewTicketTypeRequest(request);
 
@@ -242,7 +253,8 @@ public class EventServiceImpl implements EventService {
 		request.quantity().ifPresent(quantity -> {
 			int soldTickets = ticketType.getTickets().size();
 			if (quantity < soldTickets) {
-				throw new EventValidationException("Quantity cannot be less than the number of tickets already sold (" + soldTickets + ").");
+				throw new EventValidationException(
+						"Quantity cannot be less than the number of tickets already sold (" + soldTickets + ").");
 			}
 			ticketType.setTotalQuantity(quantity);
 		});
@@ -341,7 +353,8 @@ public class EventServiceImpl implements EventService {
 			return;
 		}
 
-		if (currentStatus == EventStatus.PUBLISHED && requestedStatus == EventStatus.CANCELLED) {
+		if (currentStatus == EventStatus.PUBLISHED
+				&& (requestedStatus == EventStatus.CANCELLED || requestedStatus == EventStatus.DRAFT)) {
 			return;
 		}
 
@@ -356,7 +369,7 @@ public class EventServiceImpl implements EventService {
 		}
 
 		User staff = userRepository.findById(staffId)
-			.orElseThrow(() -> new UserNotFoundException(staffId));
+				.orElseThrow(() -> new UserNotFoundException(staffId));
 
 		if (staff.getRole() != UserRole.STAFF) {
 			throw new UnauthorizedAccessException("Only staff members can view their assigned events.");
@@ -364,9 +377,55 @@ public class EventServiceImpl implements EventService {
 
 		List<EventStaff> eventStaffList = eventStaffRepository.findByStaffIdWithEvent(staffId);
 		List<AssignedEventInfo> events = eventStaffList.stream()
-			.map(es -> new AssignedEventInfo(es.getEvent().getId(), es.getEvent().getTitle()))
-			.toList();
-		
+				.map(es -> new AssignedEventInfo(es.getEvent().getId(), es.getEvent().getTitle()))
+				.toList();
+
 		return new StaffAssignedEventsResponse(events);
+	}
+
+	@Override
+	@Transactional
+	public void assignStaffToEvent(UUID eventId, UUID staffId) {
+		Event event = eventRepository.findById(eventId)
+				.orElseThrow(() -> new EventNotFoundException(eventId));
+
+		User staff = userRepository.findById(staffId)
+				.orElseThrow(() -> new UserNotFoundException(staffId));
+
+		if (staff.getRole() != UserRole.STAFF) {
+			throw new UnauthorizedAccessException("Only users with role STAFF can be assigned to events.");
+		}
+
+		if (eventStaffRepository.existsByEventIdAndStaffId(eventId, staffId)) {
+			return; // Already assigned
+		}
+
+		EventStaff assignment = new EventStaff();
+		assignment.setEvent(event);
+		assignment.setStaff(staff);
+		eventStaffRepository.save(assignment);
+	}
+
+	@Override
+	@Transactional
+	public void removeStaffFromEvent(UUID eventId, UUID staffId) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		if (!userRepository.existsById(staffId)) {
+			throw new UserNotFoundException(staffId);
+		}
+		eventStaffRepository.deleteByEventIdAndStaffId(eventId, staffId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<UserResponse> getEventStaff(UUID eventId) {
+		if (!eventRepository.existsById(eventId)) {
+			throw new EventNotFoundException(eventId);
+		}
+		return eventStaffRepository.findByEventIdWithStaff(eventId).stream()
+				.map(es -> userMapper.toResponse(es.getStaff()))
+				.toList();
 	}
 }

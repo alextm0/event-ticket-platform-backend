@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,48 +18,56 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springdoc.core.annotations.ParameterObject;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/events")
 @Tag(name = "Events", description = "APIs for managing events and related ticket types and sales")
+@RequiredArgsConstructor
 public class EventController {
 
 	private final EventService eventService;
-
-	public EventController(EventService eventService) {
-		this.eventService = eventService;
-	}
 
 	@PostMapping
 	public ResponseEntity<EventResponse> createEvent(@Valid @RequestBody CreateEventRequest request) {
 		EventResponse createdEvent = eventService.createEvent(request);
 		return ResponseEntity
-			.created(URI.create("/api/v1/events/" + createdEvent.id()))
-			.body(createdEvent);
+				.created(URI.create("/api/v1/events/" + createdEvent.id()))
+				.body(createdEvent);
 	}
 
 	@GetMapping
 	@Parameters({
-		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
-		@Parameter(name = "size", description = "Page size", example = "20"),
-		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: startTime,asc", example = "startTime,asc"),
-		@Parameter(name = "organizerId", description = "Filter events by organizer ID", example = "517e1133-7615-4c73-8634-728d64c0511f")
+			@Parameter(name = "page", description = "Zero-based page index", example = "0"),
+			@Parameter(name = "size", description = "Page size", example = "20"),
+			@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: startTime,asc", example = "startTime,asc"),
+			@Parameter(name = "organizerId", description = "Filter events by organizer ID", example = "517e1133-7615-4c73-8634-728d64c0511f")
 	})
 	public Page<EventResponse> getEvents(
 			@RequestParam(value = "organizerId", required = false) UUID organizerId,
-			@ParameterObject Pageable pageable
-	) {
+			@ParameterObject Pageable pageable) {
 		if (organizerId != null) {
 			return eventService.getEventsByOrganizer(organizerId, pageable);
 		}
 		return eventService.getAllEvents(pageable);
 	}
 
+	@GetMapping("/{eventId}")
+	public EventResponse getEventById(@PathVariable UUID eventId) {
+		return eventService.getEventById(eventId);
+	}
+
 	@PutMapping("/{eventId}")
 	public EventResponse updateEvent(
-		@PathVariable UUID eventId,
-		@Valid @RequestBody UpdateEventRequest request
-	) {
+			@PathVariable UUID eventId,
+			@Valid @RequestBody UpdateEventRequest request) {
+		return eventService.updateEvent(eventId, request);
+	}
+
+	@PatchMapping("/{eventId}")
+	public EventResponse patchEvent(
+			@PathVariable UUID eventId,
+			@RequestBody UpdateEventRequest request) {
 		return eventService.updateEvent(eventId, request);
 	}
 
@@ -70,11 +79,12 @@ public class EventController {
 
 	@GetMapping("/{eventId}/tickets")
 	@Parameters({
-		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
-		@Parameter(name = "size", description = "Page size", example = "20"),
-		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: createdAt,desc", example = "createdAt,desc")
+			@Parameter(name = "page", description = "Zero-based page index", example = "0"),
+			@Parameter(name = "size", description = "Page size", example = "20"),
+			@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: createdAt,desc", example = "createdAt,desc")
 	})
-	public Page<EventTicketSaleResponse> getTicketSalesForEvent(@PathVariable UUID eventId, @ParameterObject Pageable pageable) {
+	public Page<EventTicketSaleResponse> getTicketSalesForEvent(@PathVariable UUID eventId,
+			@ParameterObject Pageable pageable) {
 		return eventService.getTicketSalesForEvent(eventId, pageable);
 	}
 
@@ -85,11 +95,12 @@ public class EventController {
 
 	@GetMapping("/{eventId}/ticket-types")
 	@Parameters({
-		@Parameter(name = "page", description = "Zero-based page index", example = "0"),
-		@Parameter(name = "size", description = "Page size", example = "20"),
-		@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: name,asc", example = "name,asc")
+			@Parameter(name = "page", description = "Zero-based page index", example = "0"),
+			@Parameter(name = "size", description = "Page size", example = "20"),
+			@Parameter(name = "sort", description = "Sorting criteria in the format property,(asc|desc). Example: name,asc", example = "name,asc")
 	})
-	public Page<TicketTypeResponse> getTicketTypesForEvent(@PathVariable UUID eventId, @ParameterObject Pageable pageable) {
+	public Page<TicketTypeResponse> getTicketTypesForEvent(@PathVariable UUID eventId,
+			@ParameterObject Pageable pageable) {
 		return eventService.getTicketTypesForEvent(eventId, pageable);
 	}
 
@@ -101,12 +112,11 @@ public class EventController {
 	@PostMapping("/{eventId}/ticket-types")
 	public ResponseEntity<TicketTypeResponse> createTicketTypeForEvent(
 			@PathVariable UUID eventId,
-			@Valid @RequestBody CreateTicketTypeRequest request
-	) {
+			@Valid @RequestBody CreateTicketTypeRequest request) {
 		TicketTypeResponse createdTicketType = eventService.createTicketTypeForEvent(eventId, request);
 		return ResponseEntity
-			.created(URI.create("/api/v1/events/" + eventId + "/ticket-types/" + createdTicketType.id()))
-			.body(createdTicketType);
+				.created(URI.create("/api/v1/events/" + eventId + "/ticket-types/" + createdTicketType.id()))
+				.body(createdTicketType);
 	}
 
 	@DeleteMapping("/{eventId}/ticket-types/{ticketTypeId}")
@@ -119,26 +129,43 @@ public class EventController {
 	public TicketTypeResponse patchTicketTypeForEvent(
 			@PathVariable UUID eventId,
 			@PathVariable UUID ticketTypeId,
-			@RequestBody PatchTicketTypeRequest request
-	) {
+			@RequestBody PatchTicketTypeRequest request) {
 		return eventService.patchTicketTypeForEvent(eventId, ticketTypeId, request);
 	}
 
-	@Operation(
-		summary = "Get assigned events for staff member",
-		description = "Retrieve all event IDs where the specified staff member is assigned. Only staff members can access this endpoint.",
-		responses = {
+	@Operation(summary = "Get assigned events for staff member", description = "Retrieve all event IDs where the specified staff member is assigned. Only staff members can access this endpoint.", responses = {
 			@ApiResponse(responseCode = "200", description = "Assigned events returned successfully"),
 			@ApiResponse(responseCode = "403", description = "User is not a staff member"),
 			@ApiResponse(responseCode = "404", description = "Staff member not found")
-		}
-	)
+	})
 	@GetMapping("/staff/{staffId}/assigned-events")
 	public ResponseEntity<StaffAssignedEventsResponse> getAssignedEventsForStaff(
-		@Parameter(description = "Staff member identifier", required = true)
-		@PathVariable UUID staffId
-	) {
+			@Parameter(description = "Staff member identifier", required = true) @PathVariable UUID staffId) {
 		StaffAssignedEventsResponse response = eventService.getAssignedEventsForStaff(staffId);
 		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "Get staff assigned to an event", description = "Retrieve a list of staff members assigned to a specific event.")
+	@GetMapping("/{eventId}/staff")
+	public ResponseEntity<List<UserResponse>> getEventStaff(@PathVariable UUID eventId) {
+		return ResponseEntity.ok(eventService.getEventStaff(eventId));
+	}
+
+	@Operation(summary = "Assign staff to an event", description = "Assign a staff member (user with role STAFF) to an event.")
+	@PostMapping("/{eventId}/staff")
+	public ResponseEntity<Void> assignStaffToEvent(
+			@PathVariable UUID eventId,
+			@RequestBody AssignStaffRequest request) {
+		eventService.assignStaffToEvent(eventId, request.staffId());
+		return ResponseEntity.noContent().build();
+	}
+
+	@Operation(summary = "Remove staff from an event", description = "Remove a staff member's assignment from an event.")
+	@DeleteMapping("/{eventId}/staff/{staffId}")
+	public ResponseEntity<Void> removeStaffFromEvent(
+			@PathVariable UUID eventId,
+			@PathVariable UUID staffId) {
+		eventService.removeStaffFromEvent(eventId, staffId);
+		return ResponseEntity.noContent().build();
 	}
 }
