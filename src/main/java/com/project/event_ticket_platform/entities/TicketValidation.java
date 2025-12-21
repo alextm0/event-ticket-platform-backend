@@ -38,9 +38,20 @@ public class TicketValidation {
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "ticket_id", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "ticket_id")
 	private Ticket ticket;
+
+	@Column(name = "qr_code_data")
+	private String qrCodeData;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "event_id")
+	private Event event;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "staff_id")
+	private User staff;
 
 	@Enumerated(EnumType.STRING)
 	@JdbcTypeCode(SqlTypes.NAMED_ENUM)

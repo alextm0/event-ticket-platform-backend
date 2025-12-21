@@ -83,10 +83,11 @@ class TicketValidationServiceTest {
 		qrCodeId = UUID.randomUUID();
 		UUID userId = UUID.randomUUID();
 		UUID orderId = UUID.randomUUID();
-		
-		// Create QR code data string in the format: TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
+
+		// Create QR code data string in the format:
+		// TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
 		qrCodeData = String.format("TICKET:%s|EVENT:%s|USER:%s|ORDER:%s|TIMESTAMP:%d",
-			ticketId, eventId, userId, orderId, Instant.now().toEpochMilli());
+				ticketId, eventId, userId, orderId, Instant.now().toEpochMilli());
 		request = new ValidateTicketRequest(qrCodeData);
 
 		event = new Event();
@@ -120,12 +121,13 @@ class TicketValidationServiceTest {
 			validation.setId(UUID.randomUUID());
 			return validation;
 		});
-		when(ticketValidationMapper.toResponse(any(TicketValidation.class))).thenAnswer(invocation -> mapToResponse(invocation.getArgument(0)));
+		when(ticketValidationMapper.toResponse(any(TicketValidation.class)))
+				.thenAnswer(invocation -> mapToResponse(invocation.getArgument(0)));
 
 		TicketValidationResponse response = ticketValidationService.validateTicket(eventId, staffId, request);
 
 		assertNotNull(response);
-		assertEquals(qrCodeId, response.qrCodeId());
+		assertEquals(qrCodeId.toString(), response.qrCodeId());
 		assertEquals(TicketValidationEnum.VALID, response.validationStatus());
 		assertEquals(TicketStatus.CHECKED_IN, ticket.getStatus());
 
@@ -153,7 +155,8 @@ class TicketValidationServiceTest {
 			validation.setId(UUID.randomUUID());
 			return validation;
 		});
-		when(ticketValidationMapper.toResponse(any(TicketValidation.class))).thenAnswer(invocation -> mapToResponse(invocation.getArgument(0)));
+		when(ticketValidationMapper.toResponse(any(TicketValidation.class)))
+				.thenAnswer(invocation -> mapToResponse(invocation.getArgument(0)));
 
 		TicketValidationResponse response = ticketValidationService.validateTicket(eventId, staffId, request);
 
@@ -172,18 +175,16 @@ class TicketValidationServiceTest {
 		mockStaffAccess();
 		when(ticketRepository.findByTicketIdWithEventForUpdate(ticketId)).thenReturn(Optional.of(ticket));
 
-		assertThrows(UnauthorizedAccessException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, request)
-		);
+		assertThrows(UnauthorizedAccessException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, request));
 		verify(ticketValidationRepository, never()).save(any());
 	}
 
 	@Test
 	@DisplayName("Should throw when QR code id is missing")
 	void validateTicket_missingQrCode() {
-		assertThrows(IllegalArgumentException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, new ValidateTicketRequest(null))
-		);
+		assertThrows(IllegalArgumentException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, new ValidateTicketRequest(null)));
 		verifyNoInteractions(eventRepository);
 	}
 
@@ -192,9 +193,8 @@ class TicketValidationServiceTest {
 	void validateTicket_eventNotFound() {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
-		assertThrows(EventNotFoundException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, request)
-		);
+		assertThrows(EventNotFoundException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, request));
 		verify(eventRepository).findById(eventId);
 		verifyNoInteractions(userRepository);
 	}
@@ -205,9 +205,8 @@ class TicketValidationServiceTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(userRepository.findById(staffId)).thenReturn(Optional.empty());
 
-		assertThrows(UserNotFoundException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, request)
-		);
+		assertThrows(UserNotFoundException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, request));
 		verify(userRepository).findById(staffId);
 	}
 
@@ -218,9 +217,8 @@ class TicketValidationServiceTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(userRepository.findById(staffId)).thenReturn(Optional.of(staffUser));
 
-		assertThrows(UnauthorizedAccessException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, request)
-		);
+		assertThrows(UnauthorizedAccessException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, request));
 		verify(eventStaffRepository, never()).existsByEventIdAndStaffId(any(), any());
 	}
 
@@ -231,9 +229,8 @@ class TicketValidationServiceTest {
 		when(userRepository.findById(staffId)).thenReturn(Optional.of(staffUser));
 		when(eventStaffRepository.existsByEventIdAndStaffId(eventId, staffId)).thenReturn(false);
 
-		assertThrows(UnauthorizedAccessException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, request)
-		);
+		assertThrows(UnauthorizedAccessException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, request));
 		verify(eventStaffRepository).existsByEventIdAndStaffId(eventId, staffId);
 	}
 
@@ -243,9 +240,8 @@ class TicketValidationServiceTest {
 		mockStaffAccess();
 		when(ticketRepository.findByTicketIdWithEventForUpdate(ticketId)).thenReturn(Optional.empty());
 
-		assertThrows(QrCodeNotFoundException.class, () ->
-			ticketValidationService.validateTicket(eventId, staffId, request)
-		);
+		assertThrows(QrCodeNotFoundException.class,
+				() -> ticketValidationService.validateTicket(eventId, staffId, request));
 		verify(ticketRepository).findByTicketIdWithEventForUpdate(ticketId);
 	}
 
@@ -280,15 +276,16 @@ class TicketValidationServiceTest {
 
 	private TicketValidationResponse mapToResponse(TicketValidation validation) {
 		return new TicketValidationResponse(
-			validation.getId(),
-			validation.getTicket().getTicketType().getEvent().getId(),
-			validation.getTicket().getTicketType().getEvent().getTitle(),
-			validation.getTicket().getId(),
-			validation.getTicket().getQrCode().getId(),
-			validation.getTicket().getStatus(),
-			validation.getStatus(),
-			validation.getValidationMethod(),
-			validation.getValidationDateTime()
-		);
+				validation.getId(),
+				validation.getTicket().getTicketType().getEvent().getId(),
+				validation.getTicket().getTicketType().getEvent().getTitle(),
+				validation.getTicket().getId(),
+				validation.getTicket().getQrCode().getId().toString(),
+				validation.getTicket().getTicketType().getEvent().getId(),
+				validation.getTicket().getTicketType().getEvent().getTitle(),
+				validation.getTicket().getStatus(),
+				validation.getStatus(),
+				validation.getValidationMethod(),
+				validation.getValidationDateTime());
 	}
 }

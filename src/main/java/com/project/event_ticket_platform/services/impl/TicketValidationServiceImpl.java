@@ -40,11 +40,11 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 	private final UserRepository userRepository;
 
 	public TicketValidationServiceImpl(TicketRepository ticketRepository,
-									   TicketValidationRepository ticketValidationRepository,
-									   TicketValidationMapper ticketValidationMapper,
-									   EventRepository eventRepository,
-									   EventStaffRepository eventStaffRepository,
-									   UserRepository userRepository) {
+			TicketValidationRepository ticketValidationRepository,
+			TicketValidationMapper ticketValidationMapper,
+			EventRepository eventRepository,
+			EventStaffRepository eventStaffRepository,
+			UserRepository userRepository) {
 		this.ticketRepository = ticketRepository;
 		this.ticketValidationRepository = ticketValidationRepository;
 		this.ticketValidationMapper = ticketValidationMapper;
@@ -62,33 +62,51 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 
 		Event event = loadEvent(eventId);
 		validateStaffAccess(eventId, staffId);
-
-		// Parse QR code string to extract ticket ID
-		// Format: TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
-		UUID ticketId = parseTicketIdFromQrCode(request.qrCodeId());
-
-		Ticket ticket = ticketRepository.findByTicketIdWithEventForUpdate(ticketId)
-			.orElseThrow(() -> new QrCodeNotFoundException(ticketId));
-
-		if (!ticket.getTicketType().getEvent().getId().equals(event.getId())) {
-			throw new UnauthorizedAccessException("Ticket does not belong to the specified event.");
-		}
+		User staff = userRepository.findById(staffId).orElseThrow(() -> new UserNotFoundException(staffId));
 
 		TicketValidation validation = new TicketValidation();
+		validation.setEvent(event);
+		validation.setStaff(staff);
+		validation.setQrCodeData(request.qrCodeId());
 		Instant validationTime = Instant.now();
-		validation.setTicket(ticket);
-		validation.setValidationMethod(TicketValidationMethodEnum.QR_SCAN);
 		validation.setValidationDateTime(validationTime);
+		validation.setValidationMethod(TicketValidationMethodEnum.QR_SCAN);
+		validation.setStatus(TicketValidationEnum.INVALID); // Default to INVALID
 
-		if (ticket.getStatus() == TicketStatus.PURCHASED) {
-			ticket.setStatus(TicketStatus.CHECKED_IN);
-			ticket.setCheckedInAt(validationTime);
-			ticketRepository.save(ticket);
-			validation.setStatus(TicketValidationEnum.VALID);
-		} else {
-			validation.setStatus(TicketValidationEnum.INVALID);
+		try {
+			// Parse QR code string to extract ticket ID
+			// Format:
+			// TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
+			UUID ticketId = parseTicketIdFromQrCode(request.qrCodeId());
+
+			Ticket ticket = ticketRepository.findByTicketIdWithEventForUpdate(ticketId).orElse(null);
+
+			if (ticket != null) {
+				validation.setTicket(ticket);
+
+				if (ticket.getTicketType().getEvent().getId().equals(event.getId())) {
+					// Check status
+					if (ticket.getStatus() == TicketStatus.PURCHASED) {
+						// First-time valid check-in
+						ticket.setStatus(TicketStatus.CHECKED_IN);
+						ticket.setCheckedInAt(validationTime);
+						ticketRepository.save(ticket);
+						validation.setStatus(TicketValidationEnum.VALID);
+					} else if (ticket.getStatus() == TicketStatus.CHECKED_IN) {
+						// Ticket already checked in - log as invalid (duplicate scan)
+						validation.setStatus(TicketValidationEnum.INVALID);
+					} else {
+						// Other invalid states
+						validation.setStatus(TicketValidationEnum.INVALID);
+					}
+				}
+			}
+		} catch (Exception e) {
+			// Any parsing or unexpected error means the QR code is invalid
+			// validation.setStatus(TicketValidationEnum.INVALID) is already set
 		}
 
+		// Always save the validation attempt to maintain complete audit log
 		TicketValidation savedValidation = ticketValidationRepository.save(validation);
 		return ticketValidationMapper.toResponse(savedValidation);
 	}
@@ -100,13 +118,13 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 
 		List<TicketValidation> validations = ticketValidationRepository.findAllByEventIdWithDetails(eventId);
 		return validations.stream()
-			.map(ticketValidationMapper::toResponse)
-			.toList();
+				.map(ticketValidationMapper::toResponse)
+				.toList();
 	}
 
 	private Event loadEvent(UUID eventId) {
 		return eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
 	}
 
 	private void validateStaffAccess(UUID eventId, UUID staffId) {
@@ -115,7 +133,7 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 		}
 
 		User staff = userRepository.findById(staffId)
-			.orElseThrow(() -> new UserNotFoundException(staffId));
+				.orElseThrow(() -> new UserNotFoundException(staffId));
 
 		if (staff.getRole() != UserRole.STAFF) {
 			throw new UnauthorizedAccessException("Only staff members can validate tickets.");
@@ -129,7 +147,8 @@ public class TicketValidationServiceImpl implements TicketValidationService {
 
 	/**
 	 * Parses the ticket ID from the QR code data string.
-	 * Expected format: TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
+	 * Expected format:
+	 * TICKET:{ticketId}|EVENT:{eventId}|USER:{userId}|ORDER:{orderId}|TIMESTAMP:{timestamp}
 	 *
 	 * @param qrCodeData The QR code data string
 	 * @return The ticket UUID extracted from the QR code

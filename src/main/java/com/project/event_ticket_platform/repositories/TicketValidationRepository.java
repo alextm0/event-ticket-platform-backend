@@ -11,11 +11,12 @@ import java.util.UUID;
 public interface TicketValidationRepository extends JpaRepository<TicketValidation, UUID> {
 
 	@Query("SELECT tv FROM TicketValidation tv " +
-		   "JOIN FETCH tv.ticket t " +
-		   "JOIN FETCH t.ticketType tt " +
-		   "JOIN FETCH tt.event e " +
-		   "JOIN FETCH t.qrCode qr " +
-		   "WHERE e.id = :eventId " +
-		   "ORDER BY tv.validationDateTime DESC")
+			"LEFT JOIN FETCH tv.ticket t " +
+			"LEFT JOIN FETCH t.ticketType tt " +
+			"LEFT JOIN FETCH tt.event " +
+			"LEFT JOIN FETCH t.qrCode qr " +
+			"JOIN FETCH tv.event e " +
+			"WHERE e.id = :eventId " +
+			"ORDER BY tv.validationDateTime DESC")
 	List<TicketValidation> findAllByEventIdWithDetails(@Param("eventId") UUID eventId);
 }

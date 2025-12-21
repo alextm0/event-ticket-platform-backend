@@ -29,11 +29,6 @@ public class AuthService {
 			throw new InvalidCredentialsException("Invalid email or password");
 		}
 
-		// Verify role matches (email and password are correct at this point)
-		if (request.role() != null && user.getRole() != request.role()) {
-			throw new InvalidRoleException("Invalid role for this user");
-		}
-
 		// Generate JWT token
 		String token = jwtService.generateToken(
 				user.getId(),

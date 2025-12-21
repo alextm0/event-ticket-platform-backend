@@ -21,6 +21,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -63,13 +64,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ProblemDetail handleValidation(MethodArgumentNotValidException exception) {
 		Map<String, String> validationErrors = exception.getBindingResult()
-			.getFieldErrors()
-			.stream()
-			.collect(Collectors.toMap(
-				FieldError::getField,
-				error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Invalid value",
-				(first, ignored) -> first
-			));
+				.getFieldErrors()
+				.stream()
+				.collect(Collectors.toMap(
+						FieldError::getField,
+						error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Invalid value",
+						(first, ignored) -> first));
 
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
 		problem.setTitle("Validation failed");
@@ -77,6 +77,14 @@ public class GlobalExceptionHandler {
 		if (!validationErrors.isEmpty()) {
 			problem.setProperty("errors", validationErrors);
 		}
+		return problem;
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ProblemDetail handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Invalid argument type");
+		problem.setDetail("Parameter '" + exception.getName() + "' has invalid value '" + exception.getValue() + "'.");
 		return problem;
 	}
 

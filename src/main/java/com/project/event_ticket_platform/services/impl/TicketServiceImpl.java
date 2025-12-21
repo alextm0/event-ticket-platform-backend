@@ -55,14 +55,14 @@ public class TicketServiceImpl implements TicketService {
 	private final QrCodeRepository qrCodeRepository;
 
 	public TicketServiceImpl(TicketRepository ticketRepository,
-						 TicketTypeRepository ticketTypeRepository,
-						 EventRepository eventRepository,
-						 TicketOrderRepository ticketOrderRepository,
-						 UserRepository userRepository,
-						 TicketMapper ticketMapper,
-						 QrCodeMapper qrCodeMapper,
-						 QrCodeService qrCodeService,
-						 QrCodeRepository qrCodeRepository) {
+			TicketTypeRepository ticketTypeRepository,
+			EventRepository eventRepository,
+			TicketOrderRepository ticketOrderRepository,
+			UserRepository userRepository,
+			TicketMapper ticketMapper,
+			QrCodeMapper qrCodeMapper,
+			QrCodeService qrCodeService,
+			QrCodeRepository qrCodeRepository) {
 		this.ticketRepository = ticketRepository;
 		this.ticketTypeRepository = ticketTypeRepository;
 		this.eventRepository = eventRepository;
@@ -76,7 +76,8 @@ public class TicketServiceImpl implements TicketService {
 
 	@Override
 	@Transactional
-	public PurchaseTicketResponse purchaseTicket(UUID eventId, UUID ticketTypeId, PurchaseTicketRequest request, UUID userId) {
+	public PurchaseTicketResponse purchaseTicket(UUID eventId, UUID ticketTypeId, PurchaseTicketRequest request,
+			UUID userId) {
 		Integer quantity = request.quantity();
 		if (quantity == null || quantity <= 0) {
 			throw new IllegalArgumentException("Quantity must be at least 1");
@@ -85,7 +86,7 @@ public class TicketServiceImpl implements TicketService {
 
 		// Validate event exists and is published
 		Event event = eventRepository.findById(eventId)
-			.orElseThrow(() -> new EventNotFoundException(eventId));
+				.orElseThrow(() -> new EventNotFoundException(eventId));
 
 		if (event.getStatus() != EventStatus.PUBLISHED) {
 			throw new EventNotPublishedException(eventId);
@@ -93,12 +94,12 @@ public class TicketServiceImpl implements TicketService {
 
 		// Get user
 		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new UserNotFoundException(userId));
+				.orElseThrow(() -> new UserNotFoundException(userId));
 
 		// Load ticket type with pessimistic write lock to prevent race conditions
 		// This ensures atomic check-and-update of sold_count
 		TicketType ticketType = ticketTypeRepository.findByIdWithLock(ticketTypeId)
-			.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
+				.orElseThrow(() -> new TicketTypeNotFoundException(ticketTypeId));
 
 		if (!ticketType.getEvent().getId().equals(eventId)) {
 			throw new TicketTypeNotBelongsToEventException(ticketTypeId, eventId);
@@ -137,7 +138,7 @@ public class TicketServiceImpl implements TicketService {
 		// Create tickets - we'll save them first, then generate QR codes
 		// But tickets require QR codes, so we create placeholder QR codes first
 		List<Ticket> tickets = new java.util.ArrayList<>();
-		
+
 		for (int i = 0; i < requestedQuantity; i++) {
 			// Create placeholder QR code first (required by foreign key)
 			QrCode placeholderQrCode = new QrCode();
@@ -145,14 +146,14 @@ public class TicketServiceImpl implements TicketService {
 			placeholderQrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
 			// generatedDateTime will be set automatically by @CreatedDate
 			QrCode savedQrCode = qrCodeRepository.save(placeholderQrCode);
-			
+
 			// Create ticket with placeholder QR code
 			Ticket ticket = new Ticket();
 			ticket.setTicketType(ticketType);
 			ticket.setStatus(TicketStatus.PURCHASED);
 			ticket.setOrder(savedOrder);
 			ticket.setQrCode(savedQrCode);
-			
+
 			// Save ticket (JPA will generate ID)
 			Ticket savedTicket = ticketRepository.save(ticket);
 			tickets.add(savedTicket);
@@ -166,7 +167,8 @@ public class TicketServiceImpl implements TicketService {
 			qrCodeRepository.save(existingQrCode);
 		}
 
-		// Update sold count atomically (entity is locked, preventing concurrent modifications)
+		// Update sold count atomically (entity is locked, preventing concurrent
+		// modifications)
 		ticketType.setSoldCount(ticketType.getSoldCount() + requestedQuantity);
 		ticketTypeRepository.save(ticketType);
 
@@ -175,32 +177,37 @@ public class TicketServiceImpl implements TicketService {
 
 		// Map to response
 		List<TicketResponse> ticketResponses = ticketsWithRelations.stream()
-			.map(ticketMapper::toResponse)
-			.collect(Collectors.toList());
+				.map(ticketMapper::toResponse)
+				.collect(Collectors.toList());
 
 		return new PurchaseTicketResponse(
-			savedOrder.getId(),
-			savedOrder.getTotalAmount(),
-			savedOrder.getStatus(),
-			ticketResponses
-		);
+				savedOrder.getId(),
+				savedOrder.getTotalAmount(),
+				savedOrder.getStatus(),
+				ticketResponses);
 	}
 
 	@Override
 	public List<TicketResponse> listUserTickets(UUID userId) {
 		List<Ticket> tickets = ticketRepository.findAllByUserId(userId);
 		return tickets.stream()
-			.map(ticketMapper::toResponse)
-			.collect(Collectors.toList());
+				.map(ticketMapper::toResponse)
+				.collect(Collectors.toList());
 	}
 
 	@Override
 	public TicketResponse getTicketById(UUID ticketId, UUID userId) {
 		Ticket ticket = ticketRepository.findById(ticketId)
-			.orElseThrow(() -> new TicketNotFoundException(ticketId));
+				.orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-		// Verify the ticket belongs to the user
-		if (!ticket.getOrder().getUser().getId().equals(userId)) {
+		User requestUser = userRepository.findById(userId)
+				.orElseThrow(() -> new UserNotFoundException(userId));
+
+		// Verify the ticket belongs to the user OR the user is a STAFF member
+		boolean isOwner = ticket.getOrder().getUser().getId().equals(userId);
+		boolean isStaff = requestUser.getRole() == com.project.event_ticket_platform.entities.UserRole.STAFF;
+
+		if (!isOwner && !isStaff) {
 			throw new UnauthorizedAccessException("You do not have access to this ticket");
 		}
 
@@ -211,7 +218,7 @@ public class TicketServiceImpl implements TicketService {
 	public QrCodeResponse getTicketQrCode(UUID ticketId, UUID userId) {
 		// Fetch ticket with QR code relationship using JOIN FETCH to avoid N+1 query
 		Ticket ticket = ticketRepository.findByIdWithQrCode(ticketId)
-			.orElseThrow(() -> new TicketNotFoundException(ticketId));
+				.orElseThrow(() -> new TicketNotFoundException(ticketId));
 
 		// Verify the ticket belongs to the user
 		if (!ticket.getOrder().getUser().getId().equals(userId)) {
@@ -227,4 +234,3 @@ public class TicketServiceImpl implements TicketService {
 		return qrCodeMapper.toResponse(qrCode);
 	}
 }
-

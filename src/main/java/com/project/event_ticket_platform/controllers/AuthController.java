@@ -33,7 +33,7 @@ public class AuthController {
 	private final AuthService authService;
 	private final UserService userService;
 
-	@Operation(summary = "User login", description = "Authenticate a user with email, password, and role. Returns a JWT token on success.")
+	@Operation(summary = "User login", description = "Authenticate a user with email and password. Returns a JWT token on success.")
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "Login successful", content = @Content(schema = @Schema(implementation = LoginResponse.class))),
 			@ApiResponse(responseCode = "400", description = "Invalid request or credentials", content = @Content),
