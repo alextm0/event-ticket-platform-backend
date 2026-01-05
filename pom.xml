@@ -34,6 +34,19 @@
 		<bytebuddy.agent.version>1.17.8</bytebuddy.agent.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<!-- PDF Generation BOM -->
+			<dependency>
+				<groupId>com.itextpdf</groupId>
+				<artifactId>itext7-core</artifactId>
+				<version>7.2.5</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -146,8 +159,15 @@
 		<!-- PDF Generation -->
 		<dependency>
 			<groupId>com.itextpdf</groupId>
-			<artifactId>itext7-core</artifactId>
-			<version>7.2.5</version>
+			<artifactId>itext-kernel</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>itext-io</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>itext-layout</artifactId>
 		</dependency>
 	</dependencies>
 
