@@ -7,6 +7,7 @@ import com.project.event_ticket_platform.entities.QrCodeStatusEnum;
 import com.project.event_ticket_platform.entities.TicketStatus;
 import com.project.event_ticket_platform.exceptions.*;
 import com.project.event_ticket_platform.services.TicketService;
+import com.project.event_ticket_platform.services.PdfTicketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class TicketControllerTest {
 
 	@MockitoBean
 	private TicketService ticketService;
+
+	@MockitoBean
+	private PdfTicketService pdfTicketService;
 
 	@MockitoBean
 	private com.project.event_ticket_platform.services.JwtService jwtService;
@@ -309,5 +313,69 @@ class TicketControllerTest {
 				.andExpect(jsonPath("$.title").value("Unauthorized access"));
 
 		verify(ticketService).getTicketQrCode(ticketId, userId);
+	}
+
+	@Test
+	@DisplayName("GET /api/v1/tickets/{id}/download should download ticket PDF successfully")
+	void downloadTicketPdf_Success() throws Exception {
+		// Arrange
+		TicketResponse ticketResponse = new TicketResponse(
+				ticketId, TicketStatus.PURCHASED, "Spring Music Festival", "Central Park",
+				Instant.now(), "VIP", UUID.randomUUID(), null, Instant.now());
+		QrCodeResponse qrCodeResponse = new QrCodeResponse(
+				UUID.randomUUID(),
+				"iVBORw0KGgoAAAANSUhEUgAAADIAAADICAYAAAC0K5ewAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAASeSURBVHic7doxbBNREAbgL5cE",
+				QrCodeStatusEnum.ACTIVE,
+				Instant.now());
+
+		when(ticketService.getTicketById(ticketId, userId)).thenReturn(ticketResponse);
+		when(ticketService.getTicketQrCode(ticketId, userId)).thenReturn(qrCodeResponse);
+		when(pdfTicketService.generateTicketPdf(eq(ticketResponse), any(byte[].class)))
+				.thenReturn(new java.io.ByteArrayOutputStream());
+
+		// Act & Assert
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}/download", ticketId)
+				.header("X-User-Id", userId.toString()))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_PDF));
+
+		verify(ticketService).getTicketById(ticketId, userId);
+		verify(ticketService).getTicketQrCode(ticketId, userId);
+		verify(pdfTicketService).generateTicketPdf(any(), any());
+	}
+
+	@Test
+	@DisplayName("GET /api/v1/tickets/{id}/download should return 404 when ticket not found")
+	void downloadTicketPdf_TicketNotFound() throws Exception {
+		// Arrange
+		when(ticketService.getTicketById(ticketId, userId))
+				.thenThrow(new TicketNotFoundException(ticketId));
+
+		// Act & Assert
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}/download", ticketId)
+				.header("X-User-Id", userId.toString()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Ticket not found"));
+
+		verify(ticketService).getTicketById(ticketId, userId);
+		verify(ticketService, never()).getTicketQrCode(any(), any());
+		verify(pdfTicketService, never()).generateTicketPdf(any(), any());
+	}
+
+	@Test
+	@DisplayName("GET /api/v1/tickets/{id}/download should return 403 when unauthorized")
+	void downloadTicketPdf_Unauthorized() throws Exception {
+		// Arrange
+		when(ticketService.getTicketById(ticketId, userId))
+				.thenThrow(new UnauthorizedAccessException("You do not have access to this ticket"));
+
+		// Act & Assert
+		mockMvc.perform(get("/api/v1/tickets/{ticketId}/download", ticketId)
+				.header("X-User-Id", userId.toString()))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.title").value("Unauthorized access"));
+
+		verify(ticketService).getTicketById(ticketId, userId);
+		verify(pdfTicketService, never()).generateTicketPdf(any(), any());
 	}
 }

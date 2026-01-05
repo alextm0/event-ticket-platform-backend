@@ -40,71 +40,75 @@ public class PdfTicketServiceImpl implements PdfTicketService {
 
 			// Header - Event Name
 			Paragraph header = new Paragraph(ticket.eventTitle())
-					.setFontSize(24)
+					.setFontSize(26)
 					.setBold()
 					.setTextAlignment(TextAlignment.CENTER)
-					.setMarginBottom(10);
+					.setMarginBottom(5);
 			document.add(header);
 
 			// Ticket ID
-			Paragraph ticketId = new Paragraph("Ticket ID: " + ticket.id())
+			Paragraph ticketIdPara = new Paragraph("Ticket ID: " + ticket.id())
 					.setFontSize(10)
 					.setTextAlignment(TextAlignment.CENTER)
 					.setMarginBottom(20);
-			document.add(ticketId);
+			document.add(ticketIdPara);
 
 			// Main content table (2 columns)
-			Table mainTable = new Table(2);
+			Table mainTable = new Table(new float[]{1.2f, 1});
 			mainTable.setWidth(com.itextpdf.layout.properties.UnitValue.createPercentValue(100));
 
 			// Left column - Ticket details
 			Cell leftCell = new Cell();
 			leftCell.setBorder(Border.NO_BORDER);
-			leftCell.setPadding(10);
+			leftCell.setPadding(15);
 
-			// Event details
-			addDetailRow(leftCell, "Event:", ticket.eventTitle());
-			addDetailRow(leftCell, "Location:", ticket.eventLocation());
-			addDetailRow(leftCell, "Date & Time:", DATE_FORMATTER.format(ticket.eventStartTime().atZone(ZoneId.systemDefault())));
-			addDetailRow(leftCell, "Ticket Type:", ticket.ticketTypeName());
-			addDetailRow(leftCell, "Status:", ticket.status().toString());
+			// Event details with better alignment
+			addDetailRow(leftCell, "Event", ticket.eventTitle());
+			addDetailRow(leftCell, "Location", ticket.eventLocation());
+			addDetailRow(leftCell, "Date & Time", DATE_FORMATTER.format(ticket.eventStartTime().atZone(ZoneId.systemDefault())));
+			addDetailRow(leftCell, "Ticket Type", ticket.ticketTypeName());
+			addDetailRow(leftCell, "Status", ticket.status().toString());
 
 			mainTable.addCell(leftCell);
 
 			// Right column - QR Code
 			Cell rightCell = new Cell();
 			rightCell.setBorder(Border.NO_BORDER);
-			rightCell.setPadding(10);
-			rightCell.setTextAlignment(TextAlignment.CENTER);
-			rightCell.setHorizontalAlignment(HorizontalAlignment.CENTER);
+			rightCell.setPadding(15);
+			rightCell.setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE);
 
 			if (qrCodeImage != null && qrCodeImage.length > 0) {
 				ImageData imageData = ImageDataFactory.create(qrCodeImage);
 				Image qrImage = new Image(imageData);
-				qrImage.setWidth(150);
-				qrImage.setHeight(150);
-				rightCell.add(new Paragraph("Scan to Validate").setFontSize(10).setTextAlignment(TextAlignment.CENTER));
+				qrImage.setWidth(140);
+				qrImage.setHeight(140);
+				rightCell.add(new Paragraph("Scan to Validate")
+						.setFontSize(11)
+						.setBold()
+						.setTextAlignment(TextAlignment.CENTER)
+						.setMarginBottom(10));
 				rightCell.add(qrImage);
 			}
 
 			mainTable.addCell(rightCell);
 			document.add(mainTable);
 
-			// Footer section
+			// Divider line
 			document.add(new Paragraph("\n"));
+
+			// Footer section
 			Table footerTable = new Table(1);
 			footerTable.setWidth(com.itextpdf.layout.properties.UnitValue.createPercentValue(100));
 
 			Cell footerCell = new Cell();
 			footerCell.setBorder(Border.NO_BORDER);
-			footerCell.add(new Paragraph("This ticket is valid for one entry only.")
-					.setFontSize(9)
-					.setTextAlignment(TextAlignment.CENTER)
-					.setItalic());
-			footerCell.add(new Paragraph("Please keep this ticket safe and bring it to the event.")
-					.setFontSize(9)
-					.setTextAlignment(TextAlignment.CENTER)
-					.setItalic());
+			footerCell.setPadding(10);
+			footerCell.add(new Paragraph("✓ This ticket is valid for one entry only.")
+					.setFontSize(10)
+					.setTextAlignment(TextAlignment.CENTER));
+			footerCell.add(new Paragraph("✓ Please keep this ticket safe and bring it to the event.")
+					.setFontSize(10)
+					.setTextAlignment(TextAlignment.CENTER));
 			footerTable.addCell(footerCell);
 			document.add(footerTable);
 
@@ -117,21 +121,30 @@ public class PdfTicketServiceImpl implements PdfTicketService {
 	}
 
 	private void addDetailRow(Cell cell, String label, String value) {
-		Table detailTable = new Table(2);
+		// Create a table with fixed column widths for proper alignment
+		Table detailTable = new Table(new float[]{0.35f, 0.65f});
 		detailTable.setWidth(com.itextpdf.layout.properties.UnitValue.createPercentValue(100));
+		detailTable.setMarginBottom(8);
 
-		// Label cell
+		// Label cell - left aligned with bold
 		Cell labelCell = new Cell();
 		labelCell.setBorder(Border.NO_BORDER);
-		labelCell.setPadding(5);
-		labelCell.add(new Paragraph(label).setBold().setFontSize(11));
+		labelCell.setPadding(8);
+		labelCell.setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE);
+		labelCell.add(new Paragraph(label)
+				.setBold()
+				.setFontSize(12)
+				.setTextAlignment(TextAlignment.LEFT));
 		detailTable.addCell(labelCell);
 
-		// Value cell
+		// Value cell - left aligned
 		Cell valueCell = new Cell();
 		valueCell.setBorder(Border.NO_BORDER);
-		valueCell.setPadding(5);
-		valueCell.add(new Paragraph(value != null ? value : "N/A").setFontSize(11));
+		valueCell.setPadding(8);
+		valueCell.setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE);
+		valueCell.add(new Paragraph(value != null ? value : "N/A")
+				.setFontSize(12)
+				.setTextAlignment(TextAlignment.LEFT));
 		detailTable.addCell(valueCell);
 
 		cell.add(detailTable);
