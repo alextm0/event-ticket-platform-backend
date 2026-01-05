@@ -34,8 +34,6 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 	@Query(value = "SELECT COUNT(*) FROM events e WHERE e.status::text = :status", nativeQuery = true)
 	long countEventsByStatusNative(@Param("status") String status);
 
-	@Query("SELECT DISTINCT e FROM Event e LEFT JOIN FETCH e.ticketTypes LEFT JOIN FETCH e.organizer WHERE e.organizer.id = :organizerId ORDER BY e.createdAt DESC")
-	List<Event> findByOrganizerIdWithRelations(@Param("organizerId") UUID organizerId);
 
 	@Query(value = "SELECT COUNT(*) FROM events e WHERE e.organizer_id = :organizerId", nativeQuery = true)
 	long countEventsByOrganizerIdNative(@Param("organizerId") UUID organizerId);

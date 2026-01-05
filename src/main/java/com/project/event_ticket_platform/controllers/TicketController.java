@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -99,12 +100,24 @@ public class TicketController {
 			@Parameter(description = "User ID", required = true) @RequestHeader("X-User-Id") UUID userId) {
 		TicketResponse ticket = ticketService.getTicketById(ticketId, userId);
 		QrCodeResponse qrCode = ticketService.getTicketQrCode(ticketId, userId);
-		byte[] qrCodeImage = java.util.Base64.getDecoder().decode(qrCode.codeData());
+
+		byte[] qrCodeImage = null;
+		if (qrCode.codeData() != null && !qrCode.codeData().isEmpty()) {
+			try {
+				qrCodeImage = java.util.Base64.getDecoder().decode(qrCode.codeData());
+			} catch (IllegalArgumentException e) {
+				throw new IllegalStateException("Invalid QR code data for ticket: " + ticketId, e);
+			}
+		}
+
 		ByteArrayOutputStream pdf = pdfTicketService.generateTicketPdf(ticket, qrCodeImage);
 
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_PDF);
-		headers.setContentDispositionFormData("attachment", "ticket-" + ticketId + ".pdf");
+		ContentDisposition contentDisposition = ContentDisposition.attachment()
+				.filename("ticket-" + ticketId + ".pdf")
+				.build();
+		headers.setContentDisposition(contentDisposition);
 		headers.setContentLength(pdf.size());
 
 		return ResponseEntity.ok()
