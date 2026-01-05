@@ -2,6 +2,8 @@ package com.project.event_ticket_platform.repositories;
 
 import com.project.event_ticket_platform.entities.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.UUID;
 
@@ -11,5 +13,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
 	java.util.Optional<User> findByEmail(String email);
 
-	java.util.List<User> findByRole(com.project.event_ticket_platform.entities.UserRole role);
+	@Query(value = "SELECT * FROM users WHERE role = CAST(:role AS user_role)", nativeQuery = true)
+	java.util.List<User> findByRole(@Param("role") String role);
 }

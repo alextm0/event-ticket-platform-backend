@@ -34,6 +34,22 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 	@Query(value = "SELECT COUNT(*) FROM events e WHERE e.status::text = :status", nativeQuery = true)
 	long countEventsByStatusNative(@Param("status") String status);
 
+	@Query("SELECT DISTINCT e FROM Event e LEFT JOIN FETCH e.ticketTypes LEFT JOIN FETCH e.organizer WHERE e.organizer.id = :organizerId ORDER BY e.createdAt DESC")
+	List<Event> findByOrganizerIdWithRelations(@Param("organizerId") UUID organizerId);
+
+	@Query(value = "SELECT COUNT(*) FROM events e WHERE e.organizer_id = :organizerId", nativeQuery = true)
+	long countEventsByOrganizerIdNative(@Param("organizerId") UUID organizerId);
+
+	@Query(
+		value = "SELECT e.id FROM events e WHERE e.organizer_id = :organizerId ORDER BY e.created_at DESC LIMIT :limit OFFSET :offset",
+		nativeQuery = true
+	)
+	List<UUID> findEventIdsByOrganizerIdNative(
+		@Param("organizerId") UUID organizerId,
+		@Param("limit") int limit,
+		@Param("offset") int offset
+	);
+
 	default Page<Event> findAllByStatus(EventStatus status, Pageable pageable) {
 		long total = countEventsByStatusNative(status.name());
 
@@ -42,6 +58,38 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 		}
 
 		List<UUID> paginatedIds = findEventIdsByStatusNative(status.name(), pageable.getPageSize(), (int) pageable.getOffset());
+
+		if (paginatedIds.isEmpty()) {
+			return new PageImpl<>(Collections.emptyList(), pageable, total);
+		}
+
+		// Fetch events with relationships
+		List<Event> events = findAllByIdsWithRelations(paginatedIds);
+
+		// Preserve order from IDs
+		Map<UUID, Event> eventMap = new LinkedHashMap<>();
+		for (Event event : events) {
+			eventMap.put(event.getId(), event);
+		}
+		List<Event> orderedEvents = new ArrayList<>();
+		for (UUID id : paginatedIds) {
+			Event event = eventMap.get(id);
+			if (event != null) {
+				orderedEvents.add(event);
+			}
+		}
+
+		return new PageImpl<>(orderedEvents, pageable, total);
+	}
+
+	default Page<Event> findAllByOrganizerId(UUID organizerId, Pageable pageable) {
+		long total = countEventsByOrganizerIdNative(organizerId);
+
+		if (total == 0) {
+			return Page.empty(pageable);
+		}
+
+		List<UUID> paginatedIds = findEventIdsByOrganizerIdNative(organizerId, pageable.getPageSize(), (int) pageable.getOffset());
 
 		if (paginatedIds.isEmpty()) {
 			return new PageImpl<>(Collections.emptyList(), pageable, total);
@@ -65,6 +113,4 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
 		return new PageImpl<>(orderedEvents, pageable, total);
 	}
-
-	Page<Event> findAllByOrganizerId(UUID organizerId, Pageable pageable);
 }

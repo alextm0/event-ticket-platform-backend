@@ -78,7 +78,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<UserResponse> getStaffUsers() {
-		return userRepository.findByRole(UserRole.STAFF)
+		return userRepository.findByRole(UserRole.STAFF.name())
 				.stream()
 				.map(userMapper::toResponse)
 				.toList();
