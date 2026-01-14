@@ -4,6 +4,7 @@ import com.project.event_ticket_platform.dtos.PurchaseTicketRequest;
 import com.project.event_ticket_platform.dtos.PurchaseTicketResponse;
 import com.project.event_ticket_platform.dtos.QrCodeResponse;
 import com.project.event_ticket_platform.dtos.TicketResponse;
+import com.project.event_ticket_platform.services.PdfTicketService;
 import com.project.event_ticket_platform.services.TicketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,7 +12,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +35,7 @@ import java.util.UUID;
 public class TicketController {
 
 	private final TicketService ticketService;
+	private final PdfTicketService pdfTicketService;
 
 	@Operation(summary = "Purchase tickets", description = "Purchase tickets for a published event. Returns order with generated QR codes.", responses = {
 			@ApiResponse(responseCode = "201", description = "Tickets purchased successfully"),
@@ -81,5 +87,41 @@ public class TicketController {
 			@Parameter(description = "User ID", required = true) @RequestHeader("X-User-Id") UUID userId) {
 		QrCodeResponse qrCode = ticketService.getTicketQrCode(ticketId, userId);
 		return ResponseEntity.ok(qrCode);
+	}
+
+	@Operation(summary = "Download ticket as PDF", description = "Download ticket as PDF with QR code for validation", responses = {
+			@ApiResponse(responseCode = "200", description = "PDF ticket generated successfully"),
+			@ApiResponse(responseCode = "403", description = "Unauthorized access to ticket"),
+			@ApiResponse(responseCode = "404", description = "Ticket not found")
+	})
+	@GetMapping("/tickets/{ticketId}/download")
+	public ResponseEntity<byte[]> downloadTicketPdf(
+			@Parameter(description = "Ticket ID", required = true) @PathVariable("ticketId") UUID ticketId,
+			@Parameter(description = "User ID", required = true) @RequestHeader("X-User-Id") UUID userId) {
+		TicketResponse ticket = ticketService.getTicketById(ticketId, userId);
+		QrCodeResponse qrCode = ticketService.getTicketQrCode(ticketId, userId);
+
+		byte[] qrCodeImage = null;
+		if (qrCode.codeData() != null && !qrCode.codeData().isEmpty()) {
+			try {
+				qrCodeImage = java.util.Base64.getDecoder().decode(qrCode.codeData());
+			} catch (IllegalArgumentException e) {
+				throw new IllegalStateException("Invalid QR code data for ticket: " + ticketId, e);
+			}
+		}
+
+		ByteArrayOutputStream pdf = pdfTicketService.generateTicketPdf(ticket, qrCodeImage);
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_PDF);
+		ContentDisposition contentDisposition = ContentDisposition.attachment()
+				.filename("ticket-" + ticketId + ".pdf")
+				.build();
+		headers.setContentDisposition(contentDisposition);
+		headers.setContentLength(pdf.size());
+
+		return ResponseEntity.ok()
+				.headers(headers)
+				.body(pdf.toByteArray());
 	}
 }
