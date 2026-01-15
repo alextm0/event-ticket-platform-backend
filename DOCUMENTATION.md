@@ -241,11 +241,6 @@ src/main/java/com/project/event_ticket_platform/
 - CORS configuration
 - OpenAPI configuration
 
-**What does NOT go here:**
-- Business logic
-- Entity definitions
-- Request handlers
-
 **Naming:** `*Config.java` (e.g., `SecurityConfig.java`, `OpenApiConfig.java`)
 
 #### `controllers/`
@@ -255,11 +250,6 @@ src/main/java/com/project/event_ticket_platform/
 - Request validation annotations
 - Response entity construction
 
-**What does NOT go here:**
-- Business logic (delegate to services)
-- Direct repository access
-- Data transformation logic
-
 **Naming:** `*Controller.java` (e.g., `EventController.java`, `TicketController.java`)
 
 #### `dtos/`
@@ -267,11 +257,6 @@ src/main/java/com/project/event_ticket_platform/
 - Request DTOs (records preferred)
 - Response DTOs (records preferred)
 - Validation annotations on request fields
-
-**What does NOT go here:**
-- JPA annotations
-- Business logic
-- Entity relationships
 
 **Naming:** 
 - Requests: `*Request.java` (e.g., `CreateEventRequest.java`)
@@ -284,11 +269,6 @@ src/main/java/com/project/event_ticket_platform/
 - Entity relationships (`@OneToMany`, `@ManyToOne`, etc.)
 - JPA auditing fields
 
-**What does NOT go here:**
-- Business logic
-- DTOs
-- Controller logic
-
 **Naming:** Singular nouns (e.g., `Event.java`, `Ticket.java`, `User.java`)
 
 #### `exceptions/`
@@ -297,20 +277,12 @@ src/main/java/com/project/event_ticket_platform/
 - Global exception handler (`@RestControllerAdvice`)
 - Exception response DTOs
 
-**What does NOT go here:**
-- Business logic
-- Generic utility methods
-
 **Naming:** `*Exception.java` or `*NotFoundException.java` (e.g., `EventNotFoundException.java`)
 
 #### `mappers/`
 **What goes here:**
 - MapStruct mapper interfaces (`@Mapper`)
 - Custom mapping methods
-
-**What does NOT go here:**
-- Business logic
-- Manual mapping code (use MapStruct)
 
 **Naming:** `*Mapper.java` (e.g., `EventMapper.java`, `TicketMapper.java`)
 
@@ -320,18 +292,12 @@ src/main/java/com/project/event_ticket_platform/
 - Custom query methods
 - `@Query` annotations for complex queries
 
-**What does NOT go here:**
-- Business logic
-- Transaction management (handled in service)
 
 **Naming:** `*Repository.java` (e.g., `EventRepository.java`, `TicketRepository.java`)
 
 #### `services/`
 **What goes here:**
 - Service interfaces defining business operations
-
-**What does NOT go here:**
-- Implementation details (use `impl/` subpackage)
 
 **Naming:** `*Service.java` (e.g., `EventService.java`, `TicketService.java`)
 
@@ -343,9 +309,6 @@ src/main/java/com/project/event_ticket_platform/
 - Validation logic
 - Coordination between repositories
 
-**What does NOT go here:**
-- HTTP handling
-- Direct DTO construction (use mappers)
 
 **Naming:** `*ServiceImpl.java` (e.g., `EventServiceImpl.java`)
 
@@ -356,10 +319,6 @@ src/main/java/com/project/event_ticket_platform/
 - Authentication providers
 - Custom security components
 
-**What does NOT go here:**
-- General business logic
-- Non-security utilities
-
 **Naming:** Descriptive names (e.g., `JwtTokenProvider.java`, `JwtAuthenticationFilter.java`)
 
 #### `utils/`
@@ -367,10 +326,6 @@ src/main/java/com/project/event_ticket_platform/
 - General utility classes
 - Helper methods
 - Constants
-
-**What does NOT go here:**
-- Business logic
-- Security-specific utilities (use `security/`)
 
 **Naming:** `*Utils.java` or `*Helper.java`
 
