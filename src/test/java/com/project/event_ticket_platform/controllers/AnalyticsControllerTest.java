@@ -145,13 +145,13 @@ class AnalyticsControllerTest {
         UUID eventId = UUID.randomUUID();
 
         when(analyticsService.getOperationsAnalytics(eventId))
-                .thenReturn(new OperationsAnalyticsResponse(85, 100, 15.0));
+                .thenReturn(new OperationsAnalyticsResponse(85, 100, 0.15));
 
         mockMvc.perform(get("/api/v1/events/{eventId}/analytics/operations", eventId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.checkedInCount").value(85))
                 .andExpect(jsonPath("$.totalSold").value(100))
-                .andExpect(jsonPath("$.noShowRate").value(15.0));
+                .andExpect(jsonPath("$.noShowRate").value(0.15));
 
         verify(analyticsService).getOperationsAnalytics(eventId);
     }

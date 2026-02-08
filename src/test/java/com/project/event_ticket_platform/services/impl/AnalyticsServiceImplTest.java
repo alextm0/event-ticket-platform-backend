@@ -128,7 +128,7 @@ class AnalyticsServiceImplTest {
 
         assertThat(actual.totalSold()).isEqualTo(100L);
         assertThat(actual.checkedInCount()).isEqualTo(85L);
-        assertThat(actual.noShowRate()).isCloseTo(15.0, within(0.001));
+        assertThat(actual.noShowRate()).isCloseTo(0.15, within(0.001));
     }
 
     @Test
@@ -144,12 +144,12 @@ class AnalyticsServiceImplTest {
     }
 
     @Test
-    void getOperationsAnalytics_partialCheckIns_calculatesNoShowRateAsPercentage() {
+    void getOperationsAnalytics_partialCheckIns_calculatesNoShowRateAsRatio() {
         when(ticketRepository.countByEventId(eventId)).thenReturn(10L);
         when(ticketRepository.countCheckedInByEventId(eventId)).thenReturn(7L);
 
         OperationsAnalyticsResponse actual = analyticsService.getOperationsAnalytics(eventId);
 
-        assertThat(actual.noShowRate()).isCloseTo(30.0, within(0.001));
+        assertThat(actual.noShowRate()).isCloseTo(0.3, within(0.001));
     }
 }

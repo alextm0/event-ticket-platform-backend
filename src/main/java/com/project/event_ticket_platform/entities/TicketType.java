@@ -51,10 +51,10 @@ public class TicketType {
 	private BigDecimal price;
 
 	@Column(name = "total_quantity", nullable = false)
-	private Integer totalQuantity;
+	private int totalQuantity;
 
 	@Column(name = "sold_count", nullable = false)
-	private Integer soldCount = 0;
+	private int soldCount = 0;
 
 	@Column(name = "is_active", nullable = false)
 	private boolean active = true;

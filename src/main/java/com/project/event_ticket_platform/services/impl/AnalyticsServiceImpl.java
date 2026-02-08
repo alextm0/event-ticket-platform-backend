@@ -79,7 +79,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         double noShowRate = 0.0;
         if (totalSold > 0) {
-            noShowRate = (1.0 - ((double) checkedIn / totalSold)) * 100.0;
+            noShowRate = Math.max(0.0, 1.0 - ((double) checkedIn / totalSold));
         }
 
         return new OperationsAnalyticsResponse(checkedIn, totalSold, noShowRate);
