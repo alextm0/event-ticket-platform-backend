@@ -4,6 +4,7 @@ import com.project.event_ticket_platform.dtos.PublishedEventResponse;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
+import com.project.event_ticket_platform.services.JwtService;
 import com.project.event_ticket_platform.services.PublishedEventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +41,7 @@ class PublishedEventControllerTest {
 	private PublishedEventService publishedEventService;
 
 	@MockitoBean
-	private com.project.event_ticket_platform.services.JwtService jwtService;
+	private JwtService jwtService;
 
 	private PublishedEventResponse publishedEventResponse;
 	private UUID eventId;

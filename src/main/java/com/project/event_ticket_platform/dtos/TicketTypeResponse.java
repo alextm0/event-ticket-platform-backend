@@ -28,6 +28,9 @@ public record TicketTypeResponse(
 	@Schema(description = "Available quantity", example = "55")
 	Integer availableQuantity,
 
+	@Schema(description = "Sold ratio from 0.0 to 1.0 (soldCount/totalQuantity), e.g. 0.001 for 1 sold of 1000")
+	double soldRatio,
+
 	@Schema(description = "Is active", example = "true")
 	boolean active
 ) {

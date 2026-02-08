@@ -3,6 +3,7 @@ package com.project.event_ticket_platform.controllers;
 import com.project.event_ticket_platform.dtos.*;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.services.EventService;
+import com.project.event_ticket_platform.services.JwtService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -58,7 +59,7 @@ class EventControllerTest {
 	private EventService eventService;
 
 	@MockitoBean
-	private com.project.event_ticket_platform.services.JwtService jwtService;
+	private JwtService jwtService;
 
 	@Test
 	void shouldCreateEvent() throws Exception {
@@ -340,6 +341,7 @@ class EventControllerTest {
 				100,
 				40,
 				60,
+				0.4,
 				true);
 
 		Page<TicketTypeResponse> page = new PageImpl<>(List.of(ticketType), PageRequest.of(0, 10), 1);
@@ -373,6 +375,7 @@ class EventControllerTest {
 				50,
 				25,
 				25,
+				0.5,
 				true);
 
 		when(eventService.getTicketTypeForEvent(eventId, ticketTypeId)).thenReturn(ticketType);
@@ -401,6 +404,7 @@ class EventControllerTest {
 				50,
 				0,
 				50,
+				0.0,
 				true);
 
 		when(eventService.createTicketTypeForEvent(eq(eventId), any(CreateTicketTypeRequest.class)))
@@ -451,6 +455,7 @@ class EventControllerTest {
 				75,
 				50,
 				25,
+				50.0 / 75,
 				true);
 
 		when(eventService.patchTicketTypeForEvent(eq(eventId), eq(ticketTypeId), any(PatchTicketTypeRequest.class)))
