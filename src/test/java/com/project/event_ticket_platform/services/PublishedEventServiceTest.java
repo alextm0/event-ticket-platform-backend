@@ -75,6 +75,7 @@ class PublishedEventServiceTest {
 			publishedEvent.getStartTime(),
 			publishedEvent.getEndTime(),
 			EventStatus.PUBLISHED,
+			organizer.getId(),
 			"John Doe",
 			new ArrayList<>()
 		);

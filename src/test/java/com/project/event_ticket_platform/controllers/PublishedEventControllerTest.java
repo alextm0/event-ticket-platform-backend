@@ -45,10 +45,12 @@ class PublishedEventControllerTest {
 
 	private PublishedEventResponse publishedEventResponse;
 	private UUID eventId;
+	private UUID organizerId;
 
 	@BeforeEach
 	void setUp() {
 		eventId = UUID.randomUUID();
+		organizerId = UUID.randomUUID();
 		publishedEventResponse = new PublishedEventResponse(
 				eventId,
 				"Spring Music Festival",
@@ -57,6 +59,7 @@ class PublishedEventControllerTest {
 				Instant.now().plusSeconds(86400),
 				Instant.now().plusSeconds(172800),
 				EventStatus.PUBLISHED,
+				organizerId,
 				"John Doe",
 				new ArrayList<>());
 	}
@@ -146,6 +149,7 @@ class PublishedEventControllerTest {
 				.andExpect(jsonPath("$.title").value("Spring Music Festival"))
 				.andExpect(jsonPath("$.location").value("Central Park"))
 				.andExpect(jsonPath("$.status").value("PUBLISHED"))
+				.andExpect(jsonPath("$.organizerId").value(organizerId.toString()))
 				.andExpect(jsonPath("$.organizerName").value("John Doe"));
 
 		verify(publishedEventService).getPublishedEventById(eventId);
