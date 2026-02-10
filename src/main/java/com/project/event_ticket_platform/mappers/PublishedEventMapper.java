@@ -24,6 +24,7 @@ public class PublishedEventMapper {
 			event.getStartTime(),
 			event.getEndTime(),
 			event.getStatus(),
+			event.getOrganizer().getId(),
 			event.getOrganizer().getName(),
 			event.getTicketTypes().stream()
 				.map(ticketTypeMapper::toResponse)

@@ -6,8 +6,9 @@ import com.project.event_ticket_platform.entities.OrderStatus;
 import com.project.event_ticket_platform.entities.QrCodeStatusEnum;
 import com.project.event_ticket_platform.entities.TicketStatus;
 import com.project.event_ticket_platform.exceptions.*;
-import com.project.event_ticket_platform.services.TicketService;
+import com.project.event_ticket_platform.services.JwtService;
 import com.project.event_ticket_platform.services.PdfTicketService;
+import com.project.event_ticket_platform.services.TicketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class TicketControllerTest {
 	private PdfTicketService pdfTicketService;
 
 	@MockitoBean
-	private com.project.event_ticket_platform.services.JwtService jwtService;
+	private JwtService jwtService;
 
 	private UUID eventId;
 	private UUID ticketTypeId;

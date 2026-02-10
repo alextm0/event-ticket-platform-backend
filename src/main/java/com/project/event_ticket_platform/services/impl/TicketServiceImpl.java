@@ -8,11 +8,13 @@ import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.OrderStatus;
 import com.project.event_ticket_platform.entities.QrCode;
+import com.project.event_ticket_platform.entities.QrCodeStatusEnum;
 import com.project.event_ticket_platform.entities.Ticket;
 import com.project.event_ticket_platform.entities.TicketOrder;
 import com.project.event_ticket_platform.entities.TicketStatus;
 import com.project.event_ticket_platform.entities.TicketType;
 import com.project.event_ticket_platform.entities.User;
+import com.project.event_ticket_platform.entities.UserRole;
 import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
 import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
@@ -36,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -137,13 +140,13 @@ public class TicketServiceImpl implements TicketService {
 
 		// Create tickets - we'll save them first, then generate QR codes
 		// But tickets require QR codes, so we create placeholder QR codes first
-		List<Ticket> tickets = new java.util.ArrayList<>();
+		List<Ticket> tickets = new ArrayList<>();
 
 		for (int i = 0; i < requestedQuantity; i++) {
 			// Create placeholder QR code first (required by foreign key)
 			QrCode placeholderQrCode = new QrCode();
 			placeholderQrCode.setCodeData("PLACEHOLDER");
-			placeholderQrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
+			placeholderQrCode.setStatus(QrCodeStatusEnum.ACTIVE);
 			// generatedDateTime will be set automatically by @CreatedDate
 			QrCode savedQrCode = qrCodeRepository.save(placeholderQrCode);
 
@@ -205,7 +208,7 @@ public class TicketServiceImpl implements TicketService {
 
 		// Verify the ticket belongs to the user OR the user is a STAFF member
 		boolean isOwner = ticket.getOrder().getUser().getId().equals(userId);
-		boolean isStaff = requestUser.getRole() == com.project.event_ticket_platform.entities.UserRole.STAFF;
+		boolean isStaff = requestUser.getRole() == UserRole.STAFF;
 
 		if (!isOwner && !isStaff) {
 			throw new UnauthorizedAccessException("You do not have access to this ticket");

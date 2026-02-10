@@ -4,6 +4,7 @@ import com.project.event_ticket_platform.dtos.CreateUserRequest;
 import com.project.event_ticket_platform.dtos.UserResponse;
 import com.project.event_ticket_platform.entities.UserRole;
 import com.project.event_ticket_platform.exceptions.EmailAlreadyExistsException;
+import com.project.event_ticket_platform.services.JwtService;
 import com.project.event_ticket_platform.services.UserService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,7 +50,7 @@ class UserControllerTest {
 	private UserService userService;
 
 	@MockitoBean
-	private com.project.event_ticket_platform.services.JwtService jwtService;
+	private JwtService jwtService;
 
 	@Test
 	void shouldCreateUser() throws Exception {

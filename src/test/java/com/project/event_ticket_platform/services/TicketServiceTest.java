@@ -139,7 +139,7 @@ class TicketServiceTest {
 			QrCode qrCode = new QrCode();
 			qrCode.setId(UUID.randomUUID());
 			qrCode.setCodeData("base64encodedqrcode");
-			qrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
+			qrCode.setStatus(QrCodeStatusEnum.ACTIVE);
 			return qrCode;
 		});
 
@@ -396,7 +396,7 @@ class TicketServiceTest {
 			QrCode qrCode = new QrCode();
 			qrCode.setId(UUID.randomUUID());
 			qrCode.setCodeData("base64encodedqrcode");
-			qrCode.setStatus(com.project.event_ticket_platform.entities.QrCodeStatusEnum.ACTIVE);
+			qrCode.setStatus(QrCodeStatusEnum.ACTIVE);
 			return qrCode;
 		});
 

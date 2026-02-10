@@ -6,8 +6,10 @@ import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
 import com.project.event_ticket_platform.exceptions.EventValidationException;
 import com.project.event_ticket_platform.exceptions.InsufficientTicketsException;
 import com.project.event_ticket_platform.exceptions.InvalidCredentialsException;
+import com.project.event_ticket_platform.exceptions.InvalidRoleException;
 import com.project.event_ticket_platform.exceptions.OrganizerNotFoundException;
 import com.project.event_ticket_platform.exceptions.TicketNotFoundException;
+import com.project.event_ticket_platform.exceptions.TicketTypeInUseException;
 import com.project.event_ticket_platform.exceptions.TicketTypeNotActiveException;
 import com.project.event_ticket_platform.exceptions.TicketTypeNotBelongsToEventException;
 import com.project.event_ticket_platform.exceptions.TicketTypeNotFoundException;
@@ -15,7 +17,10 @@ import com.project.event_ticket_platform.exceptions.UnauthorizedAccessException;
 import com.project.event_ticket_platform.exceptions.UserNotFoundException;
 import com.project.event_ticket_platform.exceptions.QrCodeGenerationException;
 import com.project.event_ticket_platform.exceptions.QrCodeNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -28,6 +33,8 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	@ExceptionHandler(EmailAlreadyExistsException.class)
 	public ProblemDetail handleEmailAlreadyExists(EmailAlreadyExistsException exception) {
@@ -176,11 +183,36 @@ public class GlobalExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(TicketTypeInUseException.class)
+	public ProblemDetail handleTicketTypeInUse(TicketTypeInUseException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+		problem.setTitle("Ticket type in use");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(InvalidRoleException.class)
+	public ProblemDetail handleInvalidRole(InvalidRoleException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+		problem.setTitle("Invalid role");
+		problem.setDetail(exception.getMessage());
+		return problem;
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	public ProblemDetail handleAccessDenied(AccessDeniedException exception) {
+		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+		problem.setTitle("Access denied");
+		problem.setDetail(exception.getMessage() != null ? exception.getMessage() : "You do not have permission to access this resource.");
+		return problem;
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ProblemDetail handleGeneric(Exception exception) {
+		log.error("Unexpected error", exception);
 		ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
 		problem.setTitle("Unexpected error");
-		problem.setDetail(exception.getMessage());
+		problem.setDetail("An unexpected error occurred.");
 		return problem;
 	}
 }

@@ -3,7 +3,6 @@ package com.project.event_ticket_platform.services.impl;
 import com.project.event_ticket_platform.dtos.OperationsAnalyticsResponse;
 import com.project.event_ticket_platform.dtos.RecentOrderResponse;
 import com.project.event_ticket_platform.dtos.SalesHistoryPoint;
-import com.project.event_ticket_platform.entities.Ticket;
 import com.project.event_ticket_platform.entities.TicketOrder;
 import com.project.event_ticket_platform.repositories.TicketOrderRepository;
 import com.project.event_ticket_platform.repositories.TicketRepository;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -81,7 +79,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         double noShowRate = 0.0;
         if (totalSold > 0) {
-            noShowRate = 1.0 - ((double) checkedIn / totalSold);
+            noShowRate = Math.max(0.0, 1.0 - ((double) checkedIn / totalSold));
         }
 
         return new OperationsAnalyticsResponse(checkedIn, totalSold, noShowRate);

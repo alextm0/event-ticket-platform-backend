@@ -30,6 +30,9 @@ public record PublishedEventResponse(
 	@Schema(description = "Event status")
 	EventStatus status,
 
+	@Schema(description = "Organizer user ID", example = "123e4567-e89b-12d3-a456-426614174000")
+	UUID organizerId,
+
 	@Schema(description = "Organizer name", example = "John Doe")
 	String organizerName,
 

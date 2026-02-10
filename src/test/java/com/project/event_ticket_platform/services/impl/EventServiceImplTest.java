@@ -9,7 +9,6 @@ import com.project.event_ticket_platform.dtos.TicketTypeResponse;
 import com.project.event_ticket_platform.dtos.UpdateEventRequest;
 import com.project.event_ticket_platform.dtos.UserResponse;
 import com.project.event_ticket_platform.entities.Event;
-import com.project.event_ticket_platform.entities.Event;
 import com.project.event_ticket_platform.entities.EventStaff;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.entities.TicketType;

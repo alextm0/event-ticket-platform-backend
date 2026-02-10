@@ -1,7 +1,9 @@
 package com.project.event_ticket_platform.controllers;
 
+import com.project.event_ticket_platform.services.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.TestPropertySource;
@@ -21,8 +23,8 @@ class HealthControllerTest {
 	@Autowired
 	private MockMvc mockMvc;
 
-	@org.springframework.test.context.bean.override.mockito.MockitoBean
-	private com.project.event_ticket_platform.services.JwtService jwtService;
+	@MockitoBean
+	private JwtService jwtService;
 
 	@Test
 	void shouldReturnHealthStatus() throws Exception {

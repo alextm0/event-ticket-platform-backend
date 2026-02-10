@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -104,7 +105,7 @@ public class TicketController {
 		byte[] qrCodeImage = null;
 		if (qrCode.codeData() != null && !qrCode.codeData().isEmpty()) {
 			try {
-				qrCodeImage = java.util.Base64.getDecoder().decode(qrCode.codeData());
+				qrCodeImage = Base64.getDecoder().decode(qrCode.codeData());
 			} catch (IllegalArgumentException e) {
 				throw new IllegalStateException("Invalid QR code data for ticket: " + ticketId, e);
 			}

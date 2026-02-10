@@ -16,6 +16,7 @@ public interface TicketTypeMapper {
 
 	@Mapping(source = "active", target = "active")
 	@Mapping(expression = "java(ticketType.getTotalQuantity() - ticketType.getSoldCount())", target = "availableQuantity")
+	@Mapping(expression = "java(ticketType.getTotalQuantity() > 0 ? Math.max(0.0, Math.min((double) ticketType.getSoldCount() / ticketType.getTotalQuantity(), 1.0)) : 0.0)", target = "soldRatio")
 	TicketTypeResponse toResponse(TicketType ticketType);
 
 	List<TicketTypeResponse> toResponseList(List<TicketType> ticketTypes);

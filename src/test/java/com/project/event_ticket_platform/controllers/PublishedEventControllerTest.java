@@ -4,6 +4,7 @@ import com.project.event_ticket_platform.dtos.PublishedEventResponse;
 import com.project.event_ticket_platform.entities.EventStatus;
 import com.project.event_ticket_platform.exceptions.EventNotFoundException;
 import com.project.event_ticket_platform.exceptions.EventNotPublishedException;
+import com.project.event_ticket_platform.services.JwtService;
 import com.project.event_ticket_platform.services.PublishedEventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,14 +41,16 @@ class PublishedEventControllerTest {
 	private PublishedEventService publishedEventService;
 
 	@MockitoBean
-	private com.project.event_ticket_platform.services.JwtService jwtService;
+	private JwtService jwtService;
 
 	private PublishedEventResponse publishedEventResponse;
 	private UUID eventId;
+	private UUID organizerId;
 
 	@BeforeEach
 	void setUp() {
 		eventId = UUID.randomUUID();
+		organizerId = UUID.randomUUID();
 		publishedEventResponse = new PublishedEventResponse(
 				eventId,
 				"Spring Music Festival",
@@ -56,6 +59,7 @@ class PublishedEventControllerTest {
 				Instant.now().plusSeconds(86400),
 				Instant.now().plusSeconds(172800),
 				EventStatus.PUBLISHED,
+				organizerId,
 				"John Doe",
 				new ArrayList<>());
 	}
@@ -145,6 +149,7 @@ class PublishedEventControllerTest {
 				.andExpect(jsonPath("$.title").value("Spring Music Festival"))
 				.andExpect(jsonPath("$.location").value("Central Park"))
 				.andExpect(jsonPath("$.status").value("PUBLISHED"))
+				.andExpect(jsonPath("$.organizerId").value(organizerId.toString()))
 				.andExpect(jsonPath("$.organizerName").value("John Doe"));
 
 		verify(publishedEventService).getPublishedEventById(eventId);
