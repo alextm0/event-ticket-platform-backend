@@ -40,13 +40,9 @@ public class QrCodeServiceImpl implements QrCodeService {
 		byte[] qrCodeImage = generateQrCodeImage(qrData);
 		String base64Image = Base64.getEncoder().encodeToString(qrCodeImage);
 
-		// Create QR code entity (don't save - will be saved via cascade when ticket is saved)
-		// Note: generatedDateTime will be set automatically by @CreatedDate annotation
 		QrCode qrCode = new QrCode();
 		qrCode.setCodeData(base64Image);
 		qrCode.setStatus(QrCodeStatusEnum.ACTIVE);
-		// Don't set generatedDateTime - let @CreatedDate handle it automatically
-
 		return qrCode;
 
 		} catch (WriterException | IOException e) {
@@ -55,8 +51,6 @@ public class QrCodeServiceImpl implements QrCodeService {
 	}
 
 	private String generateQrData(Ticket ticket) {
-		// Create unique QR data containing ticket information
-		// Ticket ID may be null if generating before save - use a temporary identifier
 		String ticketId = ticket.getId() != null 
 			? ticket.getId().toString() 
 			: "TEMP-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 10000);
